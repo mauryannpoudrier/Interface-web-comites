@@ -60,9 +60,13 @@ type Route =
 const STORAGE_KEY = 'comites-valdor:v2';
 
 const COMMITTEES: Record<CommitteeId, { label: string; group: CommitteeGroup; color: string }> = {
-  CCC: { label: 'CCC – Comité consultatif de circulation', group: 'CCSRM', color: '#0ea5e9' },
-  CCSRM: 'CCSRM – Comité consultatif de la sécurité routière et de mobilité',
-  CCU: { label: 'CCU – Comité consultatif d’urbanisme', group: 'CCU', color: '#6366f1' },
+  CCC:  { label: 'CCC – Comité consultatif de circulation', group: 'CCSRM', color: '#0ea5e9' },
+  CCSRM: {
+    label: 'CCSRM – Comité consultatif de la sécurité routière et de mobilité',
+    group: 'CCSRM',
+    color: '#0ea5e9', // ou une autre couleur si tu veux différencier
+  },
+  CCU:  { label: 'CCU – Comité consultatif d’urbanisme', group: 'CCU',  color: '#6366f1' },
 };
 
 const COMMITTEE_GROUP_COLORS: Record<CommitteeGroup, string> = {
