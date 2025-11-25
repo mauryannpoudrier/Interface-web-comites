@@ -350,61 +350,65 @@ function SessionForm({
   onCancel?: () => void;
 }) {
   return (
-    <div className="carte">
-      <div className="entete-formulaire">
-        <div>
-          <p className="surTitre">Séances</p>
-          <h2>Ajouter ou modifier une séance</h2>
+    <div className="card">
+      <div className="session-form">
+        <div className="form-row">
+          <div className="form-field">
+            <p className="surTitre">Séances</p>
+            <h2>Ajouter ou modifier une séance</h2>
+          </div>
+          <div className="form-field" style={{ textAlign: 'right' }}>
+            <Badge committeeId={value.committeeId} />
+          </div>
         </div>
-        <Badge committeeId={value.committeeId} />
-      </div>
-      <div className="ligne-formulaire">
-        <label>
-          Numéro de séance
-          <input value={value.sessionNumber} onChange={(e) => onChange('sessionNumber', e.target.value)} />
-        </label>
-        <label>
-          Date
-          <input type="date" value={value.date} onChange={(e) => onChange('date', e.target.value)} />
-        </label>
-        <label>
-          Heure
-          <input type="time" value={value.time ?? ''} onChange={(e) => onChange('time', e.target.value)} />
-        </label>
-      </div>
-      <div className="ligne-formulaire">
-        <label>
-          Comité
-          <select
-            value={value.committeeId}
-            onChange={(e) => onChange('committeeId', e.target.value as CommitteeId)}
-          >
-            {Object.entries(COMMITTEES).map(([key, meta]) => (
-              <option key={key} value={key}>
-                {meta.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Titre (optionnel)
-          <input value={value.title ?? ''} onChange={(e) => onChange('title', e.target.value)} />
-        </label>
-      </div>
-      <DocumentListEditor
-        label="PV de séance"
-        items={value.pvDocuments}
-        onChange={(docs) => onChange('pvDocuments', docs)}
-      />
-      <div className="actions-formulaire">
-        <button className="bouton-principal" type="button" onClick={onSubmit}>
-          Enregistrer la séance
-        </button>
-        {onCancel && (
-          <button className="bouton-secondaire" type="button" onClick={onCancel}>
-            Annuler
+        <div className="form-row">
+          <label className="form-field">
+            <span className="form-label">Numéro de séance</span>
+            <input value={value.sessionNumber} onChange={(e) => onChange('sessionNumber', e.target.value)} />
+          </label>
+          <label className="form-field">
+            <span className="form-label">Date</span>
+            <input type="date" value={value.date} onChange={(e) => onChange('date', e.target.value)} />
+          </label>
+          <label className="form-field">
+            <span className="form-label">Heure</span>
+            <input type="time" value={value.time ?? ''} onChange={(e) => onChange('time', e.target.value)} />
+          </label>
+        </div>
+        <div className="form-row">
+          <label className="form-field">
+            <span className="form-label">Comité</span>
+            <select
+              value={value.committeeId}
+              onChange={(e) => onChange('committeeId', e.target.value as CommitteeId)}
+            >
+              {Object.entries(COMMITTEES).map(([key, meta]) => (
+                <option key={key} value={key}>
+                  {meta.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="form-field">
+            <span className="form-label">Titre (optionnel)</span>
+            <input value={value.title ?? ''} onChange={(e) => onChange('title', e.target.value)} />
+          </label>
+        </div>
+        <DocumentListEditor
+          label="PV de séance"
+          items={value.pvDocuments}
+          onChange={(docs) => onChange('pvDocuments', docs)}
+        />
+        <div className="actions-formulaire">
+          <button className="bouton-principal" type="button" onClick={onSubmit}>
+            Enregistrer la séance
           </button>
-        )}
+          {onCancel && (
+            <button className="bouton-secondaire" type="button" onClick={onCancel}>
+              Annuler
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -428,7 +432,7 @@ function SubjectForm({
   const parseList = (input: string) => input.split(',').map((v) => v.trim()).filter(Boolean);
 
   return (
-    <div className="carte sujet-form">
+    <div className="card sujet-form">
       <div className="entete-formulaire">
         <div>
           <p className="surTitre">Sujet</p>
@@ -568,38 +572,39 @@ function SessionCard({
   navigate: (route: Route) => void;
 }) {
   const meta = COMMITTEES[session.committeeId];
+  const committeeClass = `session-committee-pill ${session.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm'}`;
   return (
-    <article className="carte seance">
-      <header className="entete-seance">
-        <div>
+    <article className="session-card">
+      <div>
+        <div className="session-card-header">
+          <span className={committeeClass}>{session.committeeId}</span>
           <p className="surTitre">{session.sessionNumber}</p>
-          <h3>{meta.label}</h3>
-          <p className="date">
-            {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
-          </p>
-          {session.title && <p className="description">{session.title}</p>}
         </div>
-        <div className="actions">
-          <Badge committeeId={session.committeeId} />
-          <button className="bouton-secondaire" onClick={() => navigate({ page: 'session', sessionId: session.id })}>
-            Voir la séance
-          </button>
-          {onEdit && <button className="bouton-lien" onClick={() => onEdit(session)}>Modifier</button>}
-          {onDelete && (
-            <button className="bouton-lien" onClick={() => onDelete(session.id)}>
-              Supprimer
-            </button>
-          )}
+        <h3>{meta.label}</h3>
+        <p className="session-date">
+          {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
+        </p>
+        {session.title && <p className="session-subject-title">{session.title}</p>}
+        <div className="meta">
+          {session.pvDocuments.map((doc) => (
+            <a key={doc.label} className="etiquette" href={doc.url} target="_blank" rel="noreferrer">
+              Ouvrir le PV · {doc.label}
+            </a>
+          ))}
         </div>
-      </header>
-      <div className="meta">
-        {session.pvDocuments.map((doc) => (
-          <a key={doc.label} className="etiquette" href={doc.url} target="_blank" rel="noreferrer">
-            Ouvrir le PV · {doc.label}
-          </a>
-        ))}
+        <p className="surTitre">{subjects.length} sujet(s) liés</p>
       </div>
-      <p className="surTitre">{subjects.length} sujet(s) liés</p>
+      <div className="actions">
+        <button className="bouton-secondaire" onClick={() => navigate({ page: 'session', sessionId: session.id })}>
+          Voir la séance
+        </button>
+        {onEdit && <button className="bouton-lien" onClick={() => onEdit(session)}>Modifier</button>}
+        {onDelete && (
+          <button className="bouton-lien" onClick={() => onDelete(session.id)}>
+            Supprimer
+          </button>
+        )}
+      </div>
     </article>
   );
 }
@@ -610,7 +615,7 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
     .filter(Boolean) as string[];
 
   return (
-    <div className="carte sujet-detail">
+    <div className="card sujet-detail">
       <div className="ligne-titre">
         <h4>
           {subject.subjectNumber} – {subject.subjectTitle}
@@ -733,16 +738,18 @@ function HomePage({
   };
 
   return (
-    <div className="page">
-      <div className="grille">
+    <>
+      <section>
         <SessionForm
           value={form}
           onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
           onSubmit={submit}
           onCancel={() => setEditing(null)}
         />
-        <div className="carte">
-          <div className="entete-formulaire">
+      </section>
+      <section>
+        <div className="card">
+          <div className="calendar-header">
             <div>
               <p className="surTitre">Calendrier</p>
               <h2>Prochaines séances</h2>
@@ -756,32 +763,32 @@ function HomePage({
             groupColors={COMMITTEE_GROUP_COLORS}
             committeeColors={COMMITTEES}
           />
-          <div className="liste-seances calendrier-liste">
-            <div className="entete-liste">
-              <p className="surTitre">
-                {selectedDate ? `Séances du ${formatDate(selectedDate)}` : 'Séances à venir'}
-              </p>
-              {selectedDate && (
-                <button className="bouton-lien" type="button" onClick={() => setSelectedDate(null)}>
-                  Tout voir
-                </button>
-              )}
-            </div>
-            {visibleSessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                subjects={subjects.filter((s) => s.sessionId === session.id)}
-                onEdit={(s) => setEditing(s)}
-                onDelete={onDelete}
-                navigate={navigate}
-              />
-            ))}
-            {visibleSessions.length === 0 && <p className="vide">Aucune séance ce jour-là.</p>}
-          </div>
         </div>
-      </div>
-    </div>
+        <div className="session-list">
+          <div className="entete-liste">
+            <p className="surTitre">
+              {selectedDate ? `Séances du ${formatDate(selectedDate)}` : 'Séances à venir'}
+            </p>
+            {selectedDate && (
+              <button className="bouton-lien" type="button" onClick={() => setSelectedDate(null)}>
+                Tout voir
+              </button>
+            )}
+          </div>
+          {visibleSessions.map((session) => (
+            <SessionCard
+              key={session.id}
+              session={session}
+              subjects={subjects.filter((s) => s.sessionId === session.id)}
+              onEdit={(s) => setEditing(s)}
+              onDelete={onDelete}
+              navigate={navigate}
+            />
+          ))}
+          {visibleSessions.length === 0 && <p className="vide">Aucune séance ce jour-là.</p>}
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -803,7 +810,7 @@ function CommitteePage({
 
   return (
     <div className="page">
-      <div className="carte filtres">
+      <div className="card filters-card">
         <div className="entete-formulaire">
           <div>
             <p className="surTitre">Filtres</p>
@@ -823,24 +830,33 @@ function CommitteePage({
           </select>
         </label>
       </div>
-      <div className="liste-seances">
+      <div className="session-list">
         {filteredSessions.map((session) => {
           const sessionSubjects = subjects.filter((s) => s.sessionId === session.id);
           const visibles = filterCat
             ? sessionSubjects.filter((s) => s.categoriesIds.includes(filterCat))
             : sessionSubjects;
+          const committeeClass = `session-committee-pill ${
+            COMMITTEES[session.committeeId].group === 'CCU' ? 'ccu' : 'ccsrm'
+          }`;
           return (
-            <div key={session.id} className="carte">
-              <header className="entete-seance">
-                <div>
+            <div key={session.id} className="session-card">
+              <div>
+                <div className="session-card-header">
+                  <span className={committeeClass}>{session.committeeId}</span>
                   <p className="surTitre">{session.sessionNumber}</p>
-                  <h3>{COMMITTEES[session.committeeId].label}</h3>
-                  <p className="date">{formatDate(session.date, session.time)}</p>
                 </div>
-                <button className="bouton-secondaire" onClick={() => navigate({ page: 'session', sessionId: session.id })}>
+                <h3>{COMMITTEES[session.committeeId].label}</h3>
+                <p className="session-date">{formatDate(session.date, session.time)}</p>
+              </div>
+              <div>
+                <button
+                  className="bouton-secondaire"
+                  onClick={() => navigate({ page: 'session', sessionId: session.id })}
+                >
                   Ouvrir la séance
                 </button>
-              </header>
+              </div>
               <div className="liste-sujets">
                 {visibles.map((subject) => (
                   <SubjectDetail key={subject.id} subject={subject} categories={categories} />
@@ -915,7 +931,7 @@ function SessionDetail({
 
   return (
     <div className="page">
-      <div className="carte">
+      <div className="card">
         <div className="entete-seance">
           <div>
             <p className="surTitre">{session.sessionNumber}</p>
@@ -941,7 +957,7 @@ function SessionDetail({
         </div>
       </div>
 
-      <div className="carte filtres">
+      <div className="card filters-card">
         <div className="entete-formulaire">
           <div>
             <p className="surTitre">Filtres</p>
@@ -964,7 +980,7 @@ function SessionDetail({
 
       <div className="liste-sujets">
         {visibles.map((subject) => (
-          <div key={subject.id} className="carte">
+          <div key={subject.id} className="card">
             <SubjectDetail subject={subject} categories={categories} />
             <div className="actions">
               <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
@@ -1058,30 +1074,36 @@ export default function App() {
   const currentSession = route.page === 'session' ? state.sessions.find((s) => s.id === route.sessionId) : undefined;
 
   return (
-    <div className="app">
-      <header className="barre-haut">
-        <div>
-          <p className="surTitre">Ville de Val-d’Or</p>
-          <h1>Suivi des comités CCC, CCSRM et CCU</h1>
-          <p className="intro">
-            Navigation par groupes, séances et sujets. Les données sont conservées localement (localStorage) pour vos essais.
-          </p>
-          <nav className="onglets">
-            <button className={route.page === 'home' ? 'actif' : ''} onClick={() => navigate({ page: 'home' })}>
-              Accueil
-            </button>
-            <button className={route.page === 'ccu' ? 'actif' : ''} onClick={() => navigate({ page: 'ccu' })}>
-              Urbanisme (CCU)
-            </button>
-            <button className={route.page === 'ccsrm' ? 'actif' : ''} onClick={() => navigate({ page: 'ccsrm' })}>
-              Mobilité & sécurité (CCC / CCSRM)
-            </button>
-          </nav>
+    <div className="app-shell">
+      <header className="hero-card">
+        <div className="hero-card-inner">
+          <div className="hero-title-block">
+            <p className="hero-pill">
+              <span className="hero-pill-dot" />
+              Ville de Val-d’Or
+            </p>
+            <h1>Ville de Val-d’Or</h1>
+            <h2>Suivi des comités CCC, CCSRM et CCU</h2>
+            <p className="intro">
+              Navigation par groupes, séances et sujets. Les données sont conservées localement (localStorage) pour vos essais.
+            </p>
+          </div>
+          <div className="badge">Prototype interne</div>
         </div>
-        <div className="badge">Prototype interne</div>
+        <nav className="top-nav-tabs">
+          <button className={route.page === 'home' ? 'is-active' : ''} onClick={() => navigate({ page: 'home' })}>
+            Accueil
+          </button>
+          <button className={route.page === 'ccu' ? 'is-active' : ''} onClick={() => navigate({ page: 'ccu' })}>
+            Urbanisme (CCU)
+          </button>
+          <button className={route.page === 'ccsrm' ? 'is-active' : ''} onClick={() => navigate({ page: 'ccsrm' })}>
+            Mobilité & sécurité (CCC / CCSRM)
+          </button>
+        </nav>
       </header>
 
-      <main>
+      <main className={route.page === 'home' ? 'app-layout' : ''}>
         {route.page === 'home' && (
           <HomePage
             sessions={state.sessions}
