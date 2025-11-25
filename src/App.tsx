@@ -61,7 +61,7 @@ const STORAGE_KEY = 'comites-valdor:v2';
 
 const COMMITTEES: Record<CommitteeId, { label: string; group: CommitteeGroup; color: string }> = {
   CCC: { label: 'CCC – Comité consultatif de circulation', group: 'CCSRM', color: '#0ea5e9' },
-  CCSRM: { label: 'CCSRM – Commission consultative de sécurité routière municipale', group: 'CCSRM', color: '#10b981' },
+  CCSRM: 'CCSRM – Comité consultatif de la sécurité routière et de mobilité',
   CCU: { label: 'CCU – Comité consultatif d’urbanisme', group: 'CCU', color: '#6366f1' },
 };
 
