@@ -93,8 +93,8 @@ export default function Calendar({
   };
 
   return (
-    <div className="calendar">
-      <div className="calendar__header">
+    <div className="calendar-card">
+      <div className="calendar-header">
         <button className="bouton-lien" aria-label="Mois précédent" onClick={() => changeMonth(-1)}>
           ‹
         </button>
@@ -110,7 +110,7 @@ export default function Calendar({
         ))}
       </div>
 
-      <div className="calendar__grid" role="grid" aria-label={`Calendrier ${currentMonthLabel}`}>
+      <div className="calendar-grid" role="grid" aria-label={`Calendrier ${currentMonthLabel}`}>
         {days.map((day) => {
           const key = formatKey(day);
           const isCurrentMonth = day.getMonth() === viewDate.getMonth();
@@ -119,13 +119,17 @@ export default function Calendar({
           const hasSessions = daySessions.length > 0;
           const hasMultipleGroups = new Set(daySessions.map((s) => s.committeeGroup)).size > 1;
           const indicatorGroups = Array.from(new Set(daySessions.map((s) => s.committeeGroup)));
+          const hasCCU = indicatorGroups.includes('CCU');
+          const hasCCSRM = indicatorGroups.includes('CCSRM');
 
           return (
             <button
               key={key}
-              className={`calendar__day ${isCurrentMonth ? '' : 'calendar__day--muted'} ${
-                isSelected ? 'calendar__day--selected' : ''
-              } ${hasSessions ? 'calendar__day--has-sessions' : ''} ${key === todayKey ? 'calendar__day--today' : ''}`}
+              className={`calendar-day ${!isCurrentMonth ? 'is-outside-month' : ''} ${
+                hasSessions ? 'has-session' : ''
+              } ${hasCCU ? 'is-ccu' : ''} ${hasCCSRM ? 'is-ccsrm' : ''} ${isSelected ? 'is-selected' : ''} ${
+                key === todayKey ? 'is-today' : ''
+              }`}
               onClick={() => toggleDate(key)}
               role="gridcell"
               aria-pressed={isSelected}
