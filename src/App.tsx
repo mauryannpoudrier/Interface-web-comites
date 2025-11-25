@@ -60,26 +60,24 @@ type Route =
 const STORAGE_KEY = 'comites-valdor:v2';
 
 const COMMITTEES: Record<CommitteeId, { label: string; group: CommitteeGroup; color: string }> = {
-  CCC:  { label: 'CCC – Comité consultatif de circulation', group: 'CCSRM', color: '#0ea5e9' },
+  CCC:  { label: 'CCC – Comité consultatif de circulation', group: 'CCSRM', color: '#F24405' },
   CCSRM: {
     label: 'CCSRM – Comité consultatif de la sécurité routière et de mobilité',
     group: 'CCSRM',
-    color: '#0ea5e9', // ou une autre couleur si tu veux différencier
+    color: '#590202', // ou une autre couleur si tu veux différencier
   },
-  CCU:  { label: 'CCU – Comité consultatif d’urbanisme', group: 'CCU',  color: '#6366f1' },
+  CCU:  { label: 'CCU – Comité consultatif d’urbanisme', group: 'CCU',  color: '#266B73' },
 };
 
 const COMMITTEE_GROUP_COLORS: Record<CommitteeGroup, string> = {
-  CCSRM: '#0ea5e9',
-  CCU: '#6366f1',
+  CCSRM: '#590202',
+  CCU: '#266B73',
 };
 
 const defaultState: AppState = {
   categories: [
-    { id: 'mobilite', label: 'Mobilité', color: '#0ea5e9' },
-    { id: 'securite', label: 'Sécurité', color: '#f59e0b' },
-    { id: 'urbanisme', label: 'Urbanisme', color: '#6366f1' },
-    { id: 'amenagement', label: 'Aménagement', color: '#14b8a6' },
+    { id: 'mobilite active', label: 'Mobilité active', color: '#0ea5e9' },
+    { id: 'securite routiere', label: 'Sécurité routière', color: '#f59e0b' },
   ],
   sessions: [
     {
