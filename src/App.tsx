@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import Calendar from './components/Calendar';
 
-type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
-type CommitteeGroup = 'CCSRM' | 'CCU';
+export type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
+export type CommitteeGroup = 'CCSRM' | 'CCU';
 
-interface DocumentLink {
+export interface DocumentLink {
   label: string;
   url: string;
 }
 
-interface Session {
+export interface Session {
   id: string;
   committeeId: CommitteeId;
   committeeGroup: CommitteeGroup;
@@ -62,6 +63,11 @@ const COMMITTEES: Record<CommitteeId, { label: string; group: CommitteeGroup; co
   CCC: { label: 'CCC – Comité consultatif de circulation', group: 'CCSRM', color: '#0ea5e9' },
   CCSRM: { label: 'CCSRM – Commission consultative de sécurité routière municipale', group: 'CCSRM', color: '#10b981' },
   CCU: { label: 'CCU – Comité consultatif d’urbanisme', group: 'CCU', color: '#6366f1' },
+};
+
+const COMMITTEE_GROUP_COLORS: Record<CommitteeGroup, string> = {
+  CCSRM: '#0ea5e9',
+  CCU: '#6366f1',
 };
 
 const defaultState: AppState = {
@@ -695,6 +701,7 @@ function HomePage({
     title: '',
     pvDocuments: [],
   });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (editing) {
@@ -710,6 +717,11 @@ function HomePage({
         new Date(`${b.date}T${b.time ?? '00:00'}`).getTime(),
       ),
     [sessions],
+  );
+
+  const visibleSessions = useMemo(
+    () => (selectedDate ? sortedSessions.filter((session) => session.date === selectedDate) : sortedSessions),
+    [selectedDate, sortedSessions],
   );
 
   const submit = () => {
@@ -737,8 +749,25 @@ function HomePage({
             </div>
             <span className="pastille">Agenda</span>
           </div>
-          <div className="liste-seances">
-            {sortedSessions.map((session) => (
+          <Calendar
+            sessions={sortedSessions}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            groupColors={COMMITTEE_GROUP_COLORS}
+            committeeColors={COMMITTEES}
+          />
+          <div className="liste-seances calendrier-liste">
+            <div className="entete-liste">
+              <p className="surTitre">
+                {selectedDate ? `Séances du ${formatDate(selectedDate)}` : 'Séances à venir'}
+              </p>
+              {selectedDate && (
+                <button className="bouton-lien" type="button" onClick={() => setSelectedDate(null)}>
+                  Tout voir
+                </button>
+              )}
+            </div>
+            {visibleSessions.map((session) => (
               <SessionCard
                 key={session.id}
                 session={session}
@@ -748,6 +777,7 @@ function HomePage({
                 navigate={navigate}
               />
             ))}
+            {visibleSessions.length === 0 && <p className="vide">Aucune séance ce jour-là.</p>}
           </div>
         </div>
       </div>
