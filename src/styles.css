@@ -1,511 +1,537 @@
+/* =========================================================
+   DESIGN GLOBAL – INTERFACE COMITÉS VAL-D'OR
+   ====================================================== */
+
+/* ---------- Variables de thème ---------- */
+
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.6;
-  color: #0f172a;
-  background: #f7f8fb;
+  --bg-body: #f3f5fb;
+  --bg-hero-start: #0f172a;
+  --bg-hero-end: #1e293b;
+  --bg-hero-highlight: rgba(56, 189, 248, 0.25);
+
+  --bg-card: #ffffff;
+  --bg-card-soft: #f8fafc;
+
+  --accent-main: #0ea5e9;      /* cyan */
+  --accent-main-soft: #e0f2fe;
+  --accent-ccu: #6366f1;       /* violet doux */
+  --accent-ccsrm: #22c55e;     /* vert */
+  --accent-warning: #f97316;   /* orange */
+
+  --text-main: #0f172a;
+  --text-muted: #6b7280;
+  --text-soft: #9ca3af;
+  --text-on-hero: #e5e7eb;
+
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.16);
+
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --shadow-subtle: 0 10px 25px rgba(15, 23, 42, 0.05);
+
+  --transition-fast: 150ms ease-out;
 }
 
-* {
+/* ---------- Base ---------- */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, #f6f7fb 0%, #ffffff 100%);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  background:
+    radial-gradient(circle at top right, #e0f2fe 0, transparent 45%),
+    radial-gradient(circle at bottom left, #e9d5ff 0, transparent 45%),
+    var(--bg-body);
+  color: var(--text-main);
 }
 
-.app {
-  max-width: 1200px;
-  margin: 0 auto 64px;
-  padding: 24px;
+#root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
 }
 
-.barre-haut {
-  background: linear-gradient(120deg, #1f2a44, #425b8a);
-  color: #f8fbff;
-  padding: 20px 24px;
-  border-radius: 16px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+.app-shell {
+  max-width: 1180px;
+  width: 100%;
+  padding: 32px 24px 40px;
+}
+
+/* ---------- En-tête / hero ---------- */
+
+.hero-card {
+  position: relative;
+  background: radial-gradient(circle at top left, #1d4ed8 0, #0f172a 45%, #020617 100%);
+  border-radius: var(--radius-xl);
+  padding: 22px 26px 24px;
+  color: var(--text-on-hero);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.hero-card::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  background:
+    radial-gradient(circle at top, var(--bg-hero-highlight) 0, transparent 55%),
+    radial-gradient(circle at right, rgba(96, 165, 250, 0.2) 0, transparent 55%);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.hero-card-inner {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
+  align-items: flex-start;
+  z-index: 1;
 }
 
-.surTitre {
-  text-transform: uppercase;
+.hero-title-block h1 {
+  font-size: 24px;
   letter-spacing: 0.04em;
-  font-size: 12px;
-  margin: 0 0 4px;
-  color: #4f6fae;
+  text-transform: uppercase;
+  margin: 0 0 10px;
 }
 
-.barre-haut .surTitre {
-  color: #cfdafb;
-}
-
-h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-}
-
-.intro {
-  margin: 0 0 12px;
-  max-width: 760px;
-  color: #e7ecff;
-}
-
-.badge {
-  background: #fef4ff;
-  color: #a751b5;
-  padding: 10px 14px;
-  border-radius: 999px;
+.hero-title-block h2 {
+  font-size: 20px;
   font-weight: 600;
-  height: fit-content;
-  align-self: center;
+  margin: 0 0 8px;
 }
 
-nav.onglets {
-  display: flex;
+.hero-title-block p {
+  margin: 0;
+  font-size: 14px;
+  color: #cbd5f5;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.hero-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+}
+
+/* ---------- Onglets de navigation (Accueil / CCU / CCSRM) ---------- */
+
+.top-nav-tabs {
+  display: inline-flex;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-pill);
+  padding: 4px;
   margin-top: 12px;
 }
 
-nav.onglets button {
-  border: 1px solid transparent;
-  background: #f3f4fd;
-  color: #1f2a44;
-  padding: 10px 14px;
-  border-radius: 10px;
+.top-nav-tabs button {
+  border: none;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 14px;
+  padding: 6px 18px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  font-weight: 700;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
-nav.onglets button.actif {
-  background: #d9e5ff;
-  border-color: #8ea5ff;
+.top-nav-tabs button:hover {
+  background: rgba(15, 23, 42, 0.25);
+  transform: translateY(-1px);
 }
 
-main {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 16px;
+.top-nav-tabs button.is-active {
+  background: #eef2ff;
+  color: #111827;
 }
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+/* ---------- Grille principale : colonne gauche / droite ---------- */
 
-.grille {
+.app-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 20px;
+  align-items: flex-start;
 }
 
-.carte {
-  background: #fff;
-  border-radius: 16px;
-  padding: 18px 20px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-  border: 1px solid #e7edfd;
+/* ---------- Cartes génériques ---------- */
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 16px;
+  box-shadow: var(--shadow-subtle);
+  border: 1px solid var(--border-subtle);
 }
 
-.entete-formulaire,
-.entete-seance {
+.card-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-.entete-seance h2,
-.entete-seance h3,
-.entete-formulaire h2,
-.entete-formulaire h3 {
-  margin: 0;
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.ligne-formulaire {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
+.card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-label {
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--accent-main-soft);
+  color: #0369a1;
+}
+
+/* ---------- Formulaire de séance ---------- */
+
+.session-form {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-  color: #0f172a;
-  flex: 1;
-  min-width: 180px;
+  gap: 10px;
 }
 
-input,
-select,
-textarea,
-button {
-  font: inherit;
+.form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
 }
 
-input,
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="time"],
 select,
 textarea {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #d8e2fb;
-  background: #f9fbff;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  font: inherit;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  background: #f9fafb;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast), transform var(--transition-fast);
+}
+
+textarea {
+  border-radius: 16px;
+  min-height: 88px;
+  resize: vertical;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #8da9ff;
-  box-shadow: 0 0 0 3px rgba(141, 169, 255, 0.25);
-  outline: none;
-}
-
-textarea {
-  resize: vertical;
-}
-
-.bloc {
-  width: 100%;
-}
-
-.pastille {
-  background: #e6f2ff;
-  color: #1f4b99;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 12px;
-}
-
-.pastille.secondaire {
-  background: #f7ecff;
-  color: #7f2faf;
-}
-
-.bouton-principal {
-  background: linear-gradient(135deg, #6b8bff, #c271c2);
-  color: #fff;
-  border: none;
-  padding: 12px 18px;
-  border-radius: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 10px 18px rgba(107, 139, 255, 0.25);
-}
-
-.bouton-secondaire,
-.bouton-lien {
-  background: #eef3ff;
-  color: #264169;
-  border: 1px solid #d8e2fb;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.bouton-lien {
-  background: transparent;
-}
-
-.actions-formulaire {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.liste-seances,
-.liste-sujets {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.entete-liste {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.seance .meta,
-.sujet-detail .meta,
-.grille-docs ul {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.badge-comite {
-  padding: 8px 10px;
-  border-radius: 12px;
-  font-weight: 800;
-}
-
-.date {
-  color: #475569;
-  margin: 4px 0;
-}
-
-.description {
-  margin: 6px 0;
-  color: #334155;
-  white-space: pre-wrap;
-}
-
-.etiquette {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: #f3f4fd;
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.etiquette.secondaire {
-  background: #ecfdf3;
-  color: #127b54;
-}
-
-.etiquette.clair {
-  background: #f8fafc;
-  color: #475569;
-}
-
-.etiquette.neutre {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.tag {
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid #d0d7ff;
-  background: #fff;
-  cursor: pointer;
-}
-
-.tag.actif {
-  background: #e0e7ff;
-  border-color: #8ea5ff;
-}
-
-.categories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.nouveau-cat {
-  align-items: flex-end;
-}
-
-.liste-docs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.liste-docs-entete {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.grille-docs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.ligne-titre {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.sujet-form {
-  background: linear-gradient(180deg, #ffffff, #fbf8ff);
-}
-
-.vide {
-  color: #475569;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.calendar {
-  background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
-  border: 1px solid #e4e9f7;
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.calendar__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  font-weight: 700;
-  color: #1f2a44;
-}
-
-.calendar__title {
-  letter-spacing: 0.06em;
-}
-
-.calendar__weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  color: #6b7280;
-  font-weight: 700;
-  padding: 0 2px;
-  margin-bottom: 6px;
-}
-
-.calendar__weekdays span {
-  text-align: center;
-  font-size: 12px;
-}
-
-.calendar__grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-
-.calendar__day {
-  position: relative;
-  border: 1px solid #e0e7ff;
+  border-color: rgba(14, 165, 233, 0.8);
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.5);
   background: #ffffff;
-  border-radius: 12px;
-  min-height: 64px;
-  padding: 6px;
-  text-align: left;
+}
+
+/* Boutons */
+
+.button,
+button.primary-button {
+  border-radius: var(--radius-pill);
+  border: none;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s ease;
-}
-
-.calendar__day:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(79, 114, 174, 0.12);
-}
-
-.calendar__day:focus-visible {
-  outline: 2px solid #9fafea;
-  outline-offset: 2px;
-}
-
-.calendar__day--muted {
-  background: #f5f7fb;
-  color: #9ca3af;
-}
-
-.calendar__day--has-sessions {
-  border-color: #c7d2fe;
-}
-
-.calendar__day--selected {
-  border-color: #8ea5ff;
-  box-shadow: 0 8px 16px rgba(110, 136, 212, 0.18);
-}
-
-.calendar__day--today {
-  border-style: dashed;
-}
-
-.calendar__number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  font-weight: 700;
-  color: #111827;
+  gap: 8px;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: #f9fafb;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    filter var(--transition-fast);
 }
 
-.calendar__day--selected .calendar__number {
-  background: #e8edff;
+.button:hover,
+button.primary-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.35);
 }
 
-.calendar__indicator {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  display: inline-flex;
-  gap: 4px;
+.button-secondary {
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 16px;
+  font-size: 13px;
+  background: #f9fafb;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
-.calendar__indicator span {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
+.button-secondary:hover {
+  background: #e5e7eb;
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+/* ---------- Calendrier mensuel ---------- */
+
+.calendar-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendar-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calendar-month {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.calendar-nav button {
   border-radius: 999px;
+  border: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  cursor: pointer;
+  color: #4b5563;
+  font-size: 13px;
+  padding: 0;
 }
 
-.calendar__indicator--stacked span {
-  width: 10px;
-  height: 10px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9);
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  font-size: 12px;
 }
 
-.calendar__badges {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
+.calendar-weekday {
+  text-align: center;
+  color: var(--text-soft);
+  font-weight: 500;
+  padding-bottom: 4px;
+}
+
+.calendar-day {
+  height: 36px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.calendar__badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 6px;
-  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  background: #f9fafb;
+  color: var(--text-main);
   border: 1px solid transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
-.calendrier-liste {
-  margin-top: 12px;
-  padding-top: 4px;
-  border-top: 1px solid #e5e7eb;
+.calendar-day.is-outside-month {
+  opacity: 0.35;
 }
+
+.calendar-day.has-session {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.calendar-day.is-ccu.has-session::after,
+.calendar-day.is-ccsrm.has-session::after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.calendar-day.is-ccu.has-session::after {
+  background: var(--accent-ccu);
+}
+
+.calendar-day.is-ccsrm.has-session::after {
+  background: var(--accent-ccsrm);
+}
+
+.calendar-day:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(148, 163, 184, 0.35);
+}
+
+.calendar-day.is-today {
+  border-color: var(--accent-main);
+}
+
+/* ---------- Liste des séances / sujets ---------- */
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-card {
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-subtle);
+  display: grid;
+  grid-template-columns: 1.1fr minmax(0, 1.2fr);
+  gap: 8px 16px;
+  font-size: 13px;
+}
+
+.session-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-committee-pill {
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.session-committee-pill.ccu {
+  background: var(--accent-ccu);
+}
+
+.session-committee-pill.ccsrm {
+  background: var(--accent-ccsrm);
+}
+
+.session-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.session-subject-title {
+  font-weight: 500;
+}
+
+/* ---------- Filtres (catégories, mots-clés, etc.) ---------- */
+
+.filters-card {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.6);
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 8px;
+}
+
+/* ---------- Petites étiquettes / catégories ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e5f3ff;
+  font-size: 11px;
+  color: #075985;
+}
+
+/* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {
-  .grille {
-    grid-template-columns: 1fr;
+  .app-shell {
+    padding-inline: 16px;
   }
 
-  nav.onglets {
-    flex-wrap: wrap;
+  .hero-card-inner {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .app-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .form-row,
+  .filters-grid,
+  .session-card {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
