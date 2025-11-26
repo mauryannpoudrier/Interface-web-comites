@@ -181,7 +181,11 @@ function loadInitialState(): AppState {
   try {
     const parsed = JSON.parse(saved) as AppState;
     if (!parsed.sessions || !parsed.subjects || !parsed.categories) return defaultState;
-    return parsed;
+    const sessions = parsed.sessions.map((session) => ({
+      ...session,
+      committeeGroup: session.committeeGroup ?? COMMITTEES[session.committeeId].group,
+    }));
+    return { ...parsed, sessions };
   } catch (error) {
     console.warn('Impossible de lire les données locales', error);
     return defaultState;
