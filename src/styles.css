@@ -312,9 +312,24 @@ input {
   border-radius: var(--radius);
   padding: 12px;
   border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-card-content {
+  display: grid;
+  gap: 8px;
 }
 
 .session-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.session-card-actions {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -336,6 +351,41 @@ input {
 
 .session-committee-pill.ccsrm {
   background: var(--ccsrm-accent);
+}
+
+.session-committee-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #fff;
+  width: fit-content;
+}
+
+.session-committee-badge.ccu {
+  background: var(--ccu-accent);
+}
+
+.session-committee-badge.ccsrm {
+  background: var(--ccsrm-accent);
+}
+
+.session-number {
+  margin: 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.session-subject-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.session-date {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 .entete-formulaire,

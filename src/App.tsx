@@ -580,29 +580,18 @@ function SessionCard({
   navigate: (route: Route) => void;
 }) {
   const meta = COMMITTEES[session.committeeId];
-  const committeeClass = `session-committee-pill ${session.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm'}`;
+  const committeeClass = `session-committee-badge ${session.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm'}`;
   return (
     <article className="session-card">
-      <div>
-        <div className="session-card-header">
-          <span className={committeeClass}>{session.committeeId}</span>
-          <p className="surTitre">{session.sessionNumber}</p>
-        </div>
-        <h3>{meta.label}</h3>
+      <div className="session-card-content">
+        <span className={committeeClass}>{meta.label}</span>
+        <p className="session-number">{session.sessionNumber}</p>
         <p className="session-date">
           {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
         </p>
-        {session.title && <p className="session-subject-title">{session.title}</p>}
-        <div className="meta">
-          {session.pvDocuments.map((doc) => (
-            <a key={doc.label} className="etiquette" href={doc.url} target="_blank" rel="noreferrer">
-              Ouvrir le PV · {doc.label}
-            </a>
-          ))}
-        </div>
-        <p className="surTitre">{subjects.length} sujet(s) liés</p>
+        <p className="session-subject-count">{subjects.length} sujet(s) lié(s)</p>
       </div>
-      <div className="actions">
+      <div className="session-card-actions">
         <button className="bouton-secondaire" onClick={() => navigate({ page: 'session', sessionId: session.id })}>
           Voir la séance
         </button>
