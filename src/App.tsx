@@ -402,11 +402,17 @@ function SessionForm({
           onChange={(docs) => onChange('pvDocuments', docs)}
         />
         <div className="actions-formulaire">
-          <button className="bouton-principal" type="button" onClick={onSubmit}>
+         <button
+  type="button"
+  onClick={onSubmit}
+  className="app-btn app-btn-primary"
+>
             Enregistrer la séance
-          </button>
-          {onCancel && (
-            <button className="bouton-secondaire" type="button" onClick={onCancel}>
+         <button
+  type="button"
+  onClick={onCancel}
+  className="app-btn app-btn-secondary app-btn-small"
+>
               Annuler
             </button>
           )}
