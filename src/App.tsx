@@ -83,8 +83,10 @@ const MAP_PIN_COLORS: Record<CommitteeGroup, string> = {
 
 const defaultState: AppState = {
   categories: [
-    { id: 'mobilite active', label: 'Mobilité active', color: '#0ea5e9' },
-    { id: 'securite routiere', label: 'Sécurité routière', color: '#f59e0b' },
+    { id: 'mobilite', label: 'Mobilité active', color: '#0ea5e9' },
+    { id: 'securite', label: 'Sécurité routière', color: '#f59e0b' },
+    { id: 'urbanisme', label: 'Urbanisme', color: '#22c55e' },
+    { id: 'amenagement', label: 'Aménagement', color: '#8b5cf6' },
   ],
   sessions: [
     {
