@@ -57,10 +57,14 @@ body {
   height: 100vh;
 }
 
-.sidebar-logo {
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  margin-bottom: 20px;
+.sidebar-user {
+  margin-bottom: 18px;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar .surTitre {
+  color: rgba(246, 237, 227, 0.8);
 }
 
 .sidebar-nav,
@@ -106,7 +110,7 @@ body {
   box-shadow: var(--shadow);
   padding: 16px 18px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 16px;
   border: 1px solid rgba(0, 0, 0, 0.05);
@@ -261,6 +265,12 @@ input {
   padding: 6px;
   text-align: left;
   position: relative;
+}
+
+.calendar-day:not(.calendar-day--empty):hover {
+  background: #fff4eb;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .calendar-day--today {
