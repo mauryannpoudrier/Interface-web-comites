@@ -908,7 +908,14 @@ function CommitteePage({
   onSelectSujet: (sujetId: string) => void;
 }) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const filteredSessions = sessions.filter((s) => s.committeeGroup === group);
+  const filteredSessions = useMemo(() => {
+    const sessionsForGroup = sessions.filter((s) => s.committeeGroup === group);
+    return [...sessionsForGroup].sort((a, b) => {
+      const aValue = new Date(a.time ? `${a.date}T${a.time}` : a.date).getTime();
+      const bValue = new Date(b.time ? `${b.date}T${b.time}` : b.date).getTime();
+      return bValue - aValue;
+    });
+  }, [group, sessions]);
   const groupCategories = categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === group);
 
   useEffect(() => {
@@ -945,44 +952,46 @@ function CommitteePage({
 
   return (
     <div className="committee-page">
-      <div className="card map-card">
-        <div className="entete-formulaire">
-          <div>
-            <p className="surTitre">Carte globale</p>
-            <h2>Sujets {group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}</h2>
+      <div className="committee-grid">
+        <div className="card map-card">
+          <div className="entete-formulaire">
+            <div>
+              <p className="surTitre">Carte globale</p>
+              <h2>Sujets {group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}</h2>
+            </div>
           </div>
+          <MapView
+            title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
+            accent={COMMITTEE_GROUP_COLORS[group]}
+            markers={mapMarkers}
+            onSelectSujet={onSelectSujet}
+          />
         </div>
-        <MapView
-          title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
-          accent={COMMITTEE_GROUP_COLORS[group]}
-          markers={mapMarkers}
-          onSelectSujet={onSelectSujet}
-        />
-      </div>
-      <div className="card filters-card">
-        <div className="entete-formulaire">
-          <div>
-            <p className="surTitre">Filtres</p>
-            <h2>Catégorie des sujets</h2>
+        <div className="card filters-card">
+          <div className="entete-formulaire">
+            <div>
+              <p className="surTitre">Filtres</p>
+              <h2>Catégorie des sujets</h2>
+            </div>
           </div>
-        </div>
-        <p className="filter-hint">Sélectionnez une ou plusieurs catégories.</p>
-        <div className="tag-grid">
-          {groupCategories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              className={`tag ${selectedCategories.includes(cat.id) ? 'actif' : ''}`}
-              onClick={() => toggleCategory(cat.id)}
-            >
-              {cat.label}
+          <p className="filter-hint">Sélectionnez une ou plusieurs catégories.</p>
+          <div className="tag-grid">
+            {groupCategories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={`tag ${selectedCategories.includes(cat.id) ? 'actif' : ''}`}
+                onClick={() => toggleCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+          <div className="actions-formulaire align-end">
+            <button className="bouton-lien" type="button" onClick={() => setSelectedCategories([])}>
+              Tout afficher
             </button>
-          ))}
-        </div>
-        <div className="actions-formulaire align-end">
-          <button className="bouton-lien" type="button" onClick={() => setSelectedCategories([])}>
-            Tout afficher
-          </button>
+          </div>
         </div>
       </div>
       <div className="session-list">
