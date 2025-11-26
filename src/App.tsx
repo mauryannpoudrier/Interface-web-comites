@@ -1092,6 +1092,7 @@ function SessionDetail({
   onDeleteSubject,
   onCreateCategory,
   onSelectSujet,
+  focusedSubjectId,
 }: {
   session: Session;
   subjects: Subject[];
