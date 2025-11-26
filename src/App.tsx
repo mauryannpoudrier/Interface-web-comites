@@ -19,6 +19,7 @@ export interface Session {
   time?: string;
   title?: string;
   pvDocuments: DocumentLink[];
+  agendaDocuments: DocumentLink[];
 }
 
 interface Category {
@@ -102,6 +103,9 @@ const defaultState: AppState = {
       pvDocuments: [
         { label: 'PV global', url: 'https://exemple.org/pv/ccsrm-12.pdf' },
       ],
+      agendaDocuments: [
+        { label: 'Ordre du jour', url: 'https://exemple.org/odj/ccsrm-12.pdf' },
+      ],
     },
     {
       id: 'CCC-07-2025-02-12',
@@ -112,6 +116,7 @@ const defaultState: AppState = {
       time: '18:00',
       title: 'Comité circulation février',
       pvDocuments: [],
+      agendaDocuments: [],
     },
     {
       id: 'CCU-08-2025-03-05',
@@ -123,6 +128,9 @@ const defaultState: AppState = {
       title: 'Urbanisme – mars',
       pvDocuments: [
         { label: 'PV', url: 'https://exemple.org/pv/ccu-08.pdf' },
+      ],
+      agendaDocuments: [
+        { label: 'Ordre du jour', url: 'https://exemple.org/odj/ccu-08.pdf' },
       ],
     },
   ],
@@ -189,6 +197,7 @@ function loadInitialState(): AppState {
     const sessions = parsed.sessions.map((session) => ({
       ...session,
       committeeGroup: session.committeeGroup ?? COMMITTEES[session.committeeId].group,
+      agendaDocuments: session.agendaDocuments ?? [],
     }));
     const categories = parsed.categories.map((categorie) => ({
       ...categorie,
@@ -415,6 +424,12 @@ function SessionForm({
         label="PV de séance"
         items={value.pvDocuments}
         onChange={(docs) => onChange('pvDocuments', docs)}
+      />
+      <DocumentListEditor
+        label="Ordre du jour"
+        items={value.agendaDocuments}
+        onChange={(docs) => onChange('agendaDocuments', docs)}
+        addLabel="+ Ajouter un ODJ"
       />
       <div className="actions-formulaire">
         <button className="bouton-principal" type="button" onClick={onSubmit}>
@@ -787,13 +802,14 @@ function HomePage({
     date: '',
     time: '',
     pvDocuments: [],
+    agendaDocuments: [],
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (editing) {
       const { id, committeeGroup, title: _title, ...rest } = editing;
-      setForm(rest);
+      setForm({ ...rest, agendaDocuments: rest.agendaDocuments ?? [] });
     }
   }, [editing]);
 
@@ -816,7 +832,7 @@ function HomePage({
     const payload = editing ? { ...editing, ...form } : { ...form };
     onUpsert(payload as Session);
     setEditing(null);
-    setForm({ committeeId: 'CCU', sessionNumber: '', date: '', time: '', pvDocuments: [] });
+    setForm({ committeeId: 'CCU', sessionNumber: '', date: '', time: '', pvDocuments: [], agendaDocuments: [] });
   };
 
   return (
@@ -891,20 +907,26 @@ function CommitteePage({
   navigate: (route: Route) => void;
   onSelectSujet: (sujetId: string) => void;
 }) {
-  const [filterCat, setFilterCat] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const filteredSessions = sessions.filter((s) => s.committeeGroup === group);
   const groupCategories = categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === group);
 
   useEffect(() => {
-    if (filterCat && !groupCategories.some((cat) => cat.id === filterCat)) {
-      setFilterCat('');
-    }
-  }, [filterCat, groupCategories]);
+    setSelectedCategories((prev) => prev.filter((id) => groupCategories.some((cat) => cat.id === id)));
+  }, [groupCategories]);
+
+  const toggleCategory = (id: string) => {
+    setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((cat) => cat !== id) : [...prev, id]));
+  };
   const mapMarkers: MapMarker[] = useMemo(() => {
     const sessionIds = filteredSessions.map((s) => s.id);
     return subjects
       .filter((subject) => sessionIds.includes(subject.sessionId))
-      .filter((subject) => (filterCat ? subject.categoriesIds.includes(filterCat) : true))
+      .filter((subject) =>
+        selectedCategories.length
+          ? subject.categoriesIds.some((cat) => selectedCategories.includes(cat))
+          : true,
+      )
       .flatMap((subject) =>
         subject.location
           ? [
@@ -919,7 +941,7 @@ function CommitteePage({
             ]
           : [],
       );
-  }, [filteredSessions, filterCat, group, subjects]);
+  }, [filteredSessions, group, selectedCategories, subjects]);
 
   return (
     <div className="committee-page">
@@ -929,7 +951,6 @@ function CommitteePage({
             <p className="surTitre">Carte globale</p>
             <h2>Sujets {group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}</h2>
           </div>
-          <span className="pastille">Carte</span>
         </div>
         <MapView
           title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
@@ -944,29 +965,79 @@ function CommitteePage({
             <p className="surTitre">Filtres</p>
             <h2>Catégorie des sujets</h2>
           </div>
-          <span className="pastille">Recherche</span>
         </div>
-        <label>
-          Filtrer par catégorie
-          <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
-            <option value="">Toutes</option>
-            {groupCategories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="filter-hint">Sélectionnez une ou plusieurs catégories.</p>
+        <div className="tag-grid">
+          {groupCategories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className={`tag ${selectedCategories.includes(cat.id) ? 'actif' : ''}`}
+              onClick={() => toggleCategory(cat.id)}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+        <div className="actions-formulaire align-end">
+          <button className="bouton-lien" type="button" onClick={() => setSelectedCategories([])}>
+            Tout afficher
+          </button>
+        </div>
       </div>
       <div className="session-list">
         {filteredSessions.map((session) => {
           const sessionSubjects = subjects.filter((s) => s.sessionId === session.id);
-          const visibles = filterCat
-            ? sessionSubjects.filter((s) => s.categoriesIds.includes(filterCat))
+          const visibles = selectedCategories.length
+            ? sessionSubjects.filter((s) => s.categoriesIds.some((cat) => selectedCategories.includes(cat)))
             : sessionSubjects;
           const committeeClass = `session-committee-pill ${
             COMMITTEES[session.committeeId].group === 'CCU' ? 'ccu' : 'ccsrm'
           }`;
+          if (group === 'CCU') {
+            return (
+              <div key={session.id} className="session-card ccu-session-card">
+                <p className="ccu-session-number">{session.sessionNumber}</p>
+                <p className="ccu-session-date">{formatDate(session.date, session.time)}</p>
+                <div className="session-actions">
+                  <button
+                    className="bouton-secondaire"
+                    onClick={() => navigate({ page: 'session', sessionId: session.id })}
+                  >
+                    Ouvrir la séance
+                  </button>
+                </div>
+                <div className="ccu-doc-block">
+                  <p className="ccu-doc-label">Procès-verbal</p>
+                  {session.pvDocuments.length ? (
+                    <div className="ccu-doc-links">
+                      {session.pvDocuments.map((doc) => (
+                        <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
+                          {doc.label}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="ccu-doc-empty">Aucun PV disponible</p>
+                  )}
+                </div>
+                <div className="ccu-doc-block">
+                  <p className="ccu-doc-label">Ordre du jour</p>
+                  {session.agendaDocuments.length ? (
+                    <div className="ccu-doc-links">
+                      {session.agendaDocuments.map((doc) => (
+                        <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
+                          {doc.label}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="ccu-doc-empty">Aucun ordre du jour disponible</p>
+                  )}
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={session.id} className="session-card">
               <div>
@@ -1449,7 +1520,12 @@ export default function App() {
   const upsertSession = (payload: Session | Omit<Session, 'committeeGroup'> & { id?: string }) => {
     const group = COMMITTEES[payload.committeeId].group;
     const id = 'id' in payload && payload.id ? payload.id : `${payload.committeeId}-${payload.sessionNumber}-${payload.date}`;
-    const session: Session = { ...payload, id, committeeGroup: group } as Session;
+    const session: Session = {
+      ...payload,
+      id,
+      committeeGroup: group,
+      agendaDocuments: payload.agendaDocuments ?? [],
+    } as Session;
     setState((prev) => {
       const exists = prev.sessions.some((s) => s.id === id);
       const sessions = exists
