@@ -50,6 +50,7 @@ type Marker = {
   lng: number;
   color?: string;
   title: string;
+  label?: string;
   description?: string;
   subjectId?: string;
 };
@@ -70,11 +71,13 @@ export function MapView({
   accent,
   title,
   onSelectSujet,
+  onPickLocation,
 }: {
   markers: Marker[];
   accent: string;
   title: string;
   onSelectSujet?: (sujetId: string) => void;
+  onPickLocation?: (coords: { lat: number; lng: number }) => void;
 }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +90,7 @@ export function MapView({
     let canceled = false;
     let map: any = null;
     let renderedMarkers: any[] = [];
+    let infoWindow: any = null;
 
     setError(null);
 
@@ -102,6 +106,8 @@ export function MapView({
           fullscreenControl: false,
         });
 
+        infoWindow = new maps.InfoWindow();
+
         if (markers.length > 1) {
           const bounds = new maps.LatLngBounds();
           markers.forEach((marker) => bounds.extend({ lat: marker.lat, lng: marker.lng }));
@@ -112,16 +118,51 @@ export function MapView({
           const googleMarker = new maps.Marker({
             position: { lat: marker.lat, lng: marker.lng },
             map,
-            title: marker.title,
+            title: marker.label ? `Sujet ${marker.label}` : marker.title,
             icon: buildPin(marker.color ?? accent),
+            label: marker.label
+              ? {
+                  text: marker.label,
+                  color: '#ffffff',
+                  fontWeight: '700',
+                }
+              : undefined,
           });
 
           if (onSelectSujet && marker.subjectId) {
-            googleMarker.addListener('click', () => onSelectSujet(marker.subjectId as string));
+            googleMarker.addListener('click', () => {
+              if (!infoWindow) {
+                onSelectSujet(marker.subjectId as string);
+                return;
+              }
+
+              const content = `
+                <div class="map-infowindow">
+                  <p class="map-pin-label">Sujet ${marker.label ?? ''}</p>
+                  <h4>${marker.title}</h4>
+                  <button id="voir-demande" class="map-infowindow-btn">Voir la demande</button>
+                </div>
+              `;
+              infoWindow.setContent(content);
+              infoWindow.open({ anchor: googleMarker, map });
+
+              maps.event.addListenerOnce(infoWindow, 'domready', () => {
+                const btn = document.getElementById('voir-demande');
+                btn?.addEventListener('click', () => onSelectSujet(marker.subjectId as string));
+              });
+            });
           }
 
           return googleMarker;
         });
+
+        if (onPickLocation) {
+          map.addListener('click', (event: any) => {
+            const lat = event.latLng.lat();
+            const lng = event.latLng.lng();
+            onPickLocation({ lat, lng });
+          });
+        }
       })
       .catch((err) => {
         if (!canceled) {
@@ -136,7 +177,7 @@ export function MapView({
         mapRef.current = null;
       }
     };
-  }, [accent, center, markers]);
+  }, [accent, center, markers, onPickLocation, onSelectSujet]);
 
   return (
     <div className="map-shell" style={{ borderColor: accent }}>
