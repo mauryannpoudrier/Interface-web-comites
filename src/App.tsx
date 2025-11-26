@@ -25,12 +25,14 @@ interface Category {
   id: string;
   label: string;
   color?: string;
+  committeeGroup?: CommitteeGroup;
 }
 
 interface Subject {
   id: string;
   sessionId: string;
   subjectNumber: string;
+  mainResolutionNumbers?: string[];
   subjectTitle: string;
   shortLabel?: string;
   longDescription: string;
@@ -83,10 +85,10 @@ const MAP_PIN_COLORS: Record<CommitteeGroup, string> = {
 
 const defaultState: AppState = {
   categories: [
-    { id: 'mobilite', label: 'Mobilité active', color: '#0ea5e9' },
-    { id: 'securite', label: 'Sécurité routière', color: '#f59e0b' },
-    { id: 'urbanisme', label: 'Urbanisme', color: '#22c55e' },
-    { id: 'amenagement', label: 'Aménagement', color: '#8b5cf6' },
+    { id: 'mobilite', label: 'Mobilité active', color: '#0ea5e9', committeeGroup: 'CCSRM' },
+    { id: 'securite', label: 'Sécurité routière', color: '#f59e0b', committeeGroup: 'CCSRM' },
+    { id: 'urbanisme', label: 'Urbanisme', color: '#22c55e', committeeGroup: 'CCU' },
+    { id: 'amenagement', label: 'Aménagement', color: '#8b5cf6', committeeGroup: 'CCU' },
   ],
   sessions: [
     {
@@ -129,6 +131,7 @@ const defaultState: AppState = {
       id: 'sub-veloroute',
       sessionId: 'CCC-07-2025-02-12',
       subjectNumber: '1',
+      mainResolutionNumbers: ['1'],
       subjectTitle: 'Boucle cyclable temporaire',
       shortLabel: 'Véloroute',
       longDescription:
@@ -144,6 +147,7 @@ const defaultState: AppState = {
       id: 'sub-frp',
       sessionId: 'CCSRM-12-2025-03-10',
       subjectNumber: 'A-3',
+      mainResolutionNumbers: ['A-3'],
       subjectTitle: 'Feux rectangulaires rapides devant les écoles',
       longDescription:
         'Retour sur le projet pilote et priorisation des sites pour déploiement permanent. Mention des budgets et partenaires.',
@@ -161,6 +165,7 @@ const defaultState: AppState = {
       id: 'sub-valmont',
       sessionId: 'CCU-08-2025-03-05',
       subjectNumber: 'CCU-2025-14',
+      mainResolutionNumbers: ['CCU-2025-14'],
       subjectTitle: 'Projet résidentiel Valmont',
       shortLabel: 'Valmont',
       longDescription:
@@ -185,7 +190,18 @@ function loadInitialState(): AppState {
       ...session,
       committeeGroup: session.committeeGroup ?? COMMITTEES[session.committeeId].group,
     }));
-    return { ...parsed, sessions };
+    const categories = parsed.categories.map((categorie) => ({
+      ...categorie,
+      committeeGroup: categorie.committeeGroup,
+    }));
+    const subjects = parsed.subjects.map((subject) => ({
+      ...subject,
+      mainResolutionNumbers: subject.mainResolutionNumbers?.length
+        ? subject.mainResolutionNumbers
+        : [subject.subjectNumber].filter(Boolean),
+      subjectNumber: getPrimaryNumber(subject),
+    }));
+    return { ...parsed, sessions, categories, subjects };
   } catch (error) {
     console.warn('Impossible de lire les données locales', error);
     return defaultState;
@@ -229,6 +245,10 @@ function buildHash(route: Route) {
     default:
       return '#/';
   }
+}
+
+function getPrimaryNumber(subject: Pick<Subject, 'subjectNumber' | 'mainResolutionNumbers'>) {
+  return subject.mainResolutionNumbers?.find((num) => num.trim()) ?? subject.subjectNumber;
 }
 
 function Badge({ committeeId }: { committeeId: CommitteeId }) {
@@ -286,6 +306,60 @@ function DocumentListEditor({
         </button>
       </div>
       ))}
+    </div>
+  );
+}
+
+function EditableTagList({
+  label,
+  items,
+  onChange,
+  placeholder,
+  addLabel,
+}: {
+  label: string;
+  items: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+  addLabel: string;
+}) {
+  const [draft, setDraft] = useState('');
+
+  const updateItem = (index: number, value: string) => {
+    onChange(items.map((item, idx) => (idx === index ? value : item)));
+  };
+
+  const removeItem = (index: number) => {
+    onChange(items.filter((_, idx) => idx !== index));
+  };
+
+  const addItem = () => {
+    const value = draft.trim();
+    if (!value) return;
+    onChange([...items, value]);
+    setDraft('');
+  };
+
+  return (
+    <div className="form-block">
+      <label className="resolution-label">{label}</label>
+      <div className="tag-list">
+        {items.map((item, idx) => (
+          <div className="tag-row" key={`${item}-${idx}`}>
+            <input value={item} onChange={(e) => updateItem(idx, e.target.value)} placeholder={placeholder} />
+            <button type="button" className="bouton-lien" onClick={() => removeItem(idx)}>
+              Supprimer
+            </button>
+          </div>
+        ))}
+        {items.length === 0 && <p className="vide">Aucun élément pour l’instant.</p>}
+      </div>
+      <div className="tag-add-row">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />
+        <button type="button" className="bouton-secondaire" onClick={addItem}>
+          {addLabel}
+        </button>
+      </div>
     </div>
   );
 }
@@ -362,36 +436,58 @@ function SubjectForm({
   onChange,
   onSubmit,
   onCancel,
+  committeeGroup,
+  onCreateCategory,
+  onDeleteCategory,
   categories,
 }: {
   value: Omit<Subject, 'id' | 'sessionId'>;
   onChange: (field: keyof Omit<Subject, 'id' | 'sessionId'>, val: unknown) => void;
   onSubmit: () => void;
   onCancel?: () => void;
+  committeeGroup: CommitteeGroup;
+  onCreateCategory: (category: Category) => void;
+  onDeleteCategory: (id: string) => void;
   categories: Category[];
 }) {
-  const parseList = (input: string) => input.split(',').map((v) => v.trim()).filter(Boolean);
+  const filteredCategories = categories.filter(
+    (cat) => !cat.committeeGroup || cat.committeeGroup === committeeGroup,
+  );
+  const [newCategory, setNewCategory] = useState('');
 
   const handleCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const selectedOptions = Array.from(event.target.selectedOptions).map((opt) => opt.value);
     onChange('categoriesIds', selectedOptions);
   };
 
-  const updateResolution = (index: number, val: string) => {
-    onChange(
-      'resolutionNumbers',
-      value.resolutionNumbers.map((item, idx) => (idx === index ? val : item)),
-    );
+  const syncPrimaryNumber = (numbers: string[]) => {
+    const primary = numbers.find((num) => num.trim()) ?? '';
+    onChange('mainResolutionNumbers', numbers);
+    onChange('subjectNumber', primary);
   };
 
-  const addResolutionField = () => {
-    onChange('resolutionNumbers', [...value.resolutionNumbers, '']);
+  const addCategory = () => {
+    const label = newCategory.trim();
+    if (!label) return;
+    const baseId = label
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/(^-|-?$)/g, '')
+      .slice(0, 36) || `categorie-${Date.now()}`;
+
+    const color = committeeGroup === 'CCU' ? '#22c55e' : '#3b82f6';
+    onCreateCategory({ id: baseId, label, committeeGroup, color });
+    setNewCategory('');
   };
 
-  const removeResolutionField = (index: number) => {
+  const removeCategory = (id: string) => {
+    onDeleteCategory(id);
     onChange(
-      'resolutionNumbers',
-      value.resolutionNumbers.filter((_, idx) => idx !== index),
+      'categoriesIds',
+      value.categoriesIds.filter((catId) => catId !== id),
     );
   };
 
@@ -404,14 +500,13 @@ function SubjectForm({
         </div>
       </div>
       <div className="bloc-vertical">
-        <label className="form-block">
-          Numéro de la résolution/commentaire
-          <input
-            value={value.subjectNumber}
-            onChange={(e) => onChange('subjectNumber', e.target.value)}
-            placeholder="CCU-269"
-          />
-        </label>
+        <EditableTagList
+          label="Numéro de la résolution/commentaire"
+          items={value.mainResolutionNumbers ?? (value.subjectNumber ? [value.subjectNumber] : [])}
+          onChange={syncPrimaryNumber}
+          placeholder="CCU-269"
+          addLabel="+ Ajouter un numéro"
+        />
 
         <label className="form-block">
           Titre
@@ -426,7 +521,7 @@ function SubjectForm({
         <label className="form-block">
           Catégories
           <select multiple value={value.categoriesIds} onChange={handleCategoryChange}>
-            {categories.map((cat) => (
+            {filteredCategories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.label}
               </option>
@@ -435,35 +530,46 @@ function SubjectForm({
           <span className="form-hint">Maintenir Ctrl/Cmd pour sélectionner plusieurs catégories.</span>
         </label>
 
-        <label className="form-block">
-          Mots-clés
-          <input
-            value={value.keywords.join(', ')}
-            onChange={(e) => onChange('keywords', parseList(e.target.value))}
-            placeholder="piétons, vitesse, corridor"
-          />
-        </label>
-
-        <div className="form-block">
-          <label className="resolution-label">Résolution(s) en lien avec le sujet</label>
-          <div className="resolution-list">
-            {value.resolutionNumbers.map((resolution, idx) => (
-              <div key={`resolution-${idx}`} className="resolution-row">
-                <input
-                  value={resolution}
-                  onChange={(e) => updateResolution(idx, e.target.value)}
-                  placeholder="2025-04"
-                />
-                <button type="button" className="bouton-lien" onClick={() => removeResolutionField(idx)}>
-                  Supprimer
-                </button>
-              </div>
-            ))}
+        <div className="form-block category-manager">
+          <label className="resolution-label">Gérer les catégories ({committeeGroup})</label>
+          <div className="tag-add-row">
+            <input
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="Nouvelle catégorie"
+            />
+            <button type="button" className="bouton-secondaire" onClick={addCategory}>
+              + Ajouter une catégorie
+            </button>
           </div>
-          <button type="button" className="bouton-secondaire" onClick={addResolutionField}>
-            + Ajouter une résolution/commentaire
-          </button>
+          <div className="tag-pill-list">
+            {filteredCategories.map((cat) => (
+              <span key={cat.id} className="etiquette gestion-categorie">
+                {cat.label}
+                <button type="button" aria-label={`Supprimer ${cat.label}`} onClick={() => removeCategory(cat.id)}>
+                  ✕
+                </button>
+              </span>
+            ))}
+            {filteredCategories.length === 0 && <p className="vide">Aucune catégorie pour ce comité.</p>}
+          </div>
         </div>
+
+        <EditableTagList
+          label="Mots-clés"
+          items={value.keywords}
+          onChange={(items) => onChange('keywords', items)}
+          placeholder="piétons, vitesse, corridor"
+          addLabel="+ Ajouter un mot-clé"
+        />
+
+        <EditableTagList
+          label="Résolution(s) en lien avec le sujet"
+          items={value.resolutionNumbers}
+          onChange={(items) => onChange('resolutionNumbers', items)}
+          placeholder="2025-04"
+          addLabel="+ Ajouter une résolution/commentaire"
+        />
 
         <DocumentListEditor
           label="Extrait de PV"
@@ -536,12 +642,14 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
   const categoryLabels = subject.categoriesIds
     .map((id) => categories.find((c) => c.id === id)?.label)
     .filter(Boolean) as string[];
+  const mainNumbers = (subject.mainResolutionNumbers ?? [subject.subjectNumber]).filter(Boolean);
+  const titleNumber = mainNumbers.join(' · ');
 
   return (
     <div className="card sujet-detail">
       <div className="ligne-titre">
         <h4>
-          {subject.subjectNumber} – {subject.subjectTitle}
+          {titleNumber || '—'} – {subject.subjectTitle}
         </h4>
         {subject.shortLabel && <span className="etiquette secondaire">{subject.shortLabel}</span>}
       </div>
@@ -601,7 +709,10 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
       </div>
       <div className="meta">
         <span className="etiquette clair">Mots-clés : {subject.keywords.join(', ') || '—'}</span>
-        <span className="etiquette clair">Résolutions : {subject.resolutionNumbers.join(', ') || '—'}</span>
+        <span className="etiquette clair">
+          Résolutions principales : {mainNumbers.join(', ') || '—'}
+        </span>
+        <span className="etiquette clair">Résolutions liées : {subject.resolutionNumbers.join(', ') || '—'}</span>
       </div>
     </div>
   );
@@ -733,6 +844,13 @@ function CommitteePage({
 }) {
   const [filterCat, setFilterCat] = useState<string>('');
   const filteredSessions = sessions.filter((s) => s.committeeGroup === group);
+  const groupCategories = categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === group);
+
+  useEffect(() => {
+    if (filterCat && !groupCategories.some((cat) => cat.id === filterCat)) {
+      setFilterCat('');
+    }
+  }, [filterCat, groupCategories]);
   const mapMarkers: MapMarker[] = useMemo(() => {
     const sessionIds = filteredSessions.map((s) => s.id);
     return subjects
@@ -746,7 +864,7 @@ function CommitteePage({
                 lng: subject.location.lng,
                 color: MAP_PIN_COLORS[group],
                 title: subject.subjectTitle,
-                label: subject.subjectNumber,
+                label: getPrimaryNumber(subject),
                 subjectId: subject.id,
               },
             ]
@@ -783,7 +901,7 @@ function CommitteePage({
           Filtrer par catégorie
           <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
             <option value="">Toutes</option>
-            {categories.map((cat) => (
+            {groupCategories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.label}
               </option>
@@ -884,9 +1002,13 @@ function SearchPage({
           if (!haystack.includes(keywords.toLowerCase())) return false;
         }
         if (resolution.trim()) {
-          const hasResolution = entry.subject.resolutionNumbers.some((num) =>
-            num.toLowerCase().includes(resolution.toLowerCase()),
-          );
+          const hasResolution =
+            entry.subject.resolutionNumbers.some((num) =>
+              num.toLowerCase().includes(resolution.toLowerCase()),
+            ) ||
+            (entry.subject.mainResolutionNumbers ?? [entry.subject.subjectNumber]).some((num) =>
+              num.toLowerCase().includes(resolution.toLowerCase()),
+            );
           if (!hasResolution) return false;
         }
         return true;
@@ -894,7 +1016,10 @@ function SearchPage({
       .sort((a, b) => (b.session ? new Date(`${b.session.date}`).getTime() : 0) - (a.session ? new Date(`${a.session.date}`).getTime() : 0));
   }, [committee, keywords, resolution, selectedCategories, sessions, subjects]);
 
-  const filteredCategories = committee === 'all' ? categories : categories;
+  const filteredCategories =
+    committee === 'all'
+      ? categories
+      : categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === committee);
   const resultMarkers: MapMarker[] = useMemo(
     () =>
       results
@@ -904,7 +1029,7 @@ function SearchPage({
           lng: subject.location!.lng,
           color: MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'],
           title: subject.subjectTitle,
-          label: subject.subjectNumber,
+          label: getPrimaryNumber(subject),
           subjectId: subject.id,
         })),
     [results],
@@ -1003,6 +1128,8 @@ function SessionDetail({
   categories,
   onUpsertSubject,
   onDeleteSubject,
+  onCreateCategory,
+  onDeleteCategory,
   onSelectSujet,
   focusedSubjectId,
 }: {
@@ -1011,6 +1138,8 @@ function SessionDetail({
   categories: Category[];
   onUpsertSubject: (subject: Subject | (Omit<Subject, 'id'> & { id?: string })) => void;
   onDeleteSubject: (id: string) => void;
+  onCreateCategory: (category: Category) => void;
+  onDeleteCategory: (id: string) => void;
   onSelectSujet: (sujetId: string) => void;
   focusedSubjectId?: string | null;
 }) {
@@ -1019,6 +1148,7 @@ function SessionDetail({
   const [draftLocation, setDraftLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [form, setForm] = useState<Omit<Subject, 'id' | 'sessionId'>>({
     subjectNumber: '',
+    mainResolutionNumbers: [],
     subjectTitle: '',
     shortLabel: '',
     longDescription: '',
@@ -1033,7 +1163,13 @@ function SessionDetail({
   useEffect(() => {
     if (editing) {
       const { sessionId, id, ...rest } = editing;
-      setForm(rest);
+      setForm({
+        ...rest,
+        mainResolutionNumbers: rest.mainResolutionNumbers?.length
+          ? rest.mainResolutionNumbers
+          : [rest.subjectNumber],
+        subjectNumber: getPrimaryNumber(rest),
+      });
     }
   }, [editing]);
 
@@ -1052,12 +1188,23 @@ function SessionDetail({
   }, [focusedSubjectId]);
 
   const save = () => {
-    if (!form.subjectNumber || !form.subjectTitle) return;
+    const primaryNumber =
+      form.mainResolutionNumbers?.find((num) => num.trim()) ?? form.subjectNumber.trim();
+    if (!primaryNumber || !form.subjectTitle) return;
     const payload = editing ? { ...editing, ...form } : { ...form };
-    onUpsertSubject({ ...(payload as Subject), sessionId: session.id });
+    const normalized = {
+      ...(payload as Subject),
+      sessionId: session.id,
+      subjectNumber: primaryNumber,
+      mainResolutionNumbers: form.mainResolutionNumbers?.length
+        ? form.mainResolutionNumbers
+        : [primaryNumber],
+    } satisfies Subject;
+    onUpsertSubject(normalized);
     setEditing(null);
     setForm({
       subjectNumber: '',
+      mainResolutionNumbers: [],
       subjectTitle: '',
       shortLabel: '',
       longDescription: '',
@@ -1080,7 +1227,7 @@ function SessionDetail({
           lng: subject.location!.lng,
           color: MAP_PIN_COLORS[session.committeeGroup],
           title: subject.subjectTitle,
-          label: subject.subjectNumber,
+          label: getPrimaryNumber(subject),
           subjectId: subject.id,
         })),
     [session.committeeGroup, visibles],
@@ -1093,7 +1240,7 @@ function SessionDetail({
           lng: draftLocation.lng,
           color: MAP_PIN_COLORS[session.committeeGroup],
           title: locatingSubject?.subjectTitle || 'Localisation',
-          label: locatingSubject?.subjectNumber,
+          label: locatingSubject ? getPrimaryNumber(locatingSubject) : undefined,
         } satisfies MapMarker,
       ]
     : [];
@@ -1146,6 +1293,9 @@ function SessionDetail({
             onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
             onSubmit={save}
             onCancel={() => setEditing(null)}
+            committeeGroup={session.committeeGroup}
+            onCreateCategory={onCreateCategory}
+            onDeleteCategory={onDeleteCategory}
             categories={categories}
           />
         </div>
@@ -1284,11 +1434,35 @@ export default function App() {
     setState((prev) => ({ ...prev, subjects: prev.subjects.filter((s) => s.id !== id) }));
   };
 
-  const createCategory = (categorie: Category) => {
+  const addCategory = (categorie: Category) => {
     setState((prev) => {
-      if (prev.categories.some((c) => c.id === categorie.id)) return prev;
-      return { ...prev, categories: [...prev.categories, categorie] };
+      const hasSameLabel = prev.categories.some(
+        (c) =>
+          c.label.toLowerCase() === categorie.label.toLowerCase() &&
+          (c.committeeGroup ?? 'all') === (categorie.committeeGroup ?? 'all'),
+      );
+      if (hasSameLabel) return prev;
+
+      let id = categorie.id;
+      let suffix = 1;
+      while (prev.categories.some((c) => c.id === id)) {
+        id = `${categorie.id}-${suffix++}`;
+      }
+
+      const normalized = { ...categorie, id } as Category;
+      return { ...prev, categories: [...prev.categories, normalized] };
     });
+  };
+
+  const deleteCategory = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      categories: prev.categories.filter((c) => c.id !== id),
+      subjects: prev.subjects.map((subject) => ({
+        ...subject,
+        categoriesIds: subject.categoriesIds.filter((catId) => catId !== id),
+      })),
+    }));
   };
 
   const onSelectSujet = (sujetId: string) => {
@@ -1424,6 +1598,8 @@ export default function App() {
               categories={state.categories}
               onUpsertSubject={upsertSubject}
               onDeleteSubject={deleteSubject}
+              onCreateCategory={addCategory}
+              onDeleteCategory={deleteCategory}
               onSelectSujet={onSelectSujet}
               focusedSubjectId={focusedSubjectId}
             />
