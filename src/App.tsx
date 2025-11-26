@@ -278,13 +278,12 @@ function DocumentListEditor({
           <button
             type="button"
             className="bouton-lien"
-            onClick={() => onChange(items.filter((_, idx) => idx !== index))}
-          >
-            Supprimer
-          </button>
-        </div>
+          onClick={() => onChange(items.filter((_, idx) => idx !== index))}
+        >
+          Supprimer
+        </button>
+      </div>
       ))}
-      {items.length === 0 && <p className="vide">Aucun document pour l’instant.</p>}
     </div>
   );
 }
@@ -362,8 +361,8 @@ function SessionForm({
   onSubmit,
   onCancel,
 }: {
-  value: Omit<Session, 'id' | 'committeeGroup'>;
-  onChange: (field: keyof Omit<Session, 'id' | 'committeeGroup'>, val: string | DocumentLink[]) => void;
+  value: Omit<Session, 'id' | 'committeeGroup' | 'title'>;
+  onChange: (field: keyof Omit<Session, 'id' | 'committeeGroup' | 'title'>, val: string | DocumentLink[]) => void;
   onSubmit: () => void;
   onCancel?: () => void;
 }) {
@@ -372,7 +371,7 @@ function SessionForm({
       <div className="form-row">
         <div className="form-field">
           <p className="surTitre">Séances</p>
-          <h2>Ajouter ou modifier une séance</h2>
+          <h2>Ajouter une séance</h2>
         </div>
         <div className="form-field" style={{ textAlign: 'right' }}>
           <Badge committeeId={value.committeeId} />
@@ -402,10 +401,6 @@ function SessionForm({
               </option>
             ))}
           </select>
-        </label>
-        <label className="form-field">
-          <span className="form-label">Titre (optionnel)</span>
-          <input value={value.title ?? ''} onChange={(e) => onChange('title', e.target.value)} />
         </label>
       </div>
       <DocumentListEditor
@@ -711,19 +706,18 @@ function HomePage({
   navigate: (route: Route) => void;
 }) {
   const [editing, setEditing] = useState<Session | null>(null);
-  const [form, setForm] = useState<Omit<Session, 'id' | 'committeeGroup'>>({
+  const [form, setForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>({
     committeeId: 'CCU',
     sessionNumber: '',
     date: '',
     time: '',
-    title: '',
     pvDocuments: [],
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (editing) {
-      const { id, committeeGroup, ...rest } = editing;
+      const { id, committeeGroup, title: _title, ...rest } = editing;
       setForm(rest);
     }
   }, [editing]);
@@ -747,7 +741,7 @@ function HomePage({
     const payload = editing ? { ...editing, ...form } : { ...form };
     onUpsert(payload as Session);
     setEditing(null);
-    setForm({ committeeId: 'CCU', sessionNumber: '', date: '', time: '', title: '', pvDocuments: [] });
+    setForm({ committeeId: 'CCU', sessionNumber: '', date: '', time: '', pvDocuments: [] });
   };
 
   return (
@@ -1471,7 +1465,15 @@ export default function App() {
   return (
     <div className={`app-frame theme-${theme}`}>
       <aside className="sidebar">
-        <div className="sidebar-logo">Comités</div>
+        {route.page === 'home' && (
+          <div className="user-chip sidebar-user">
+            <div className="avatar" aria-hidden />
+            <div>
+              <p className="surTitre">Utilisateur</p>
+              <strong>Nom, Prénom</strong>
+            </div>
+          </div>
+        )}
         <nav className="sidebar-nav">
           <button className={route.page === 'home' ? 'active' : ''} onClick={() => navigate({ page: 'home' })}>
             <span>🏠</span>
@@ -1496,15 +1498,7 @@ export default function App() {
 
       <div className="app-main">
         <header className="global-header">
-          <div className="user-chip">
-            <div className="avatar" aria-hidden />
-            <div>
-              <p className="surTitre">Utilisateur</p>
-              <strong>Nom, Prénom</strong>
-            </div>
-          </div>
           <div className="header-titles">
-            <p className="surTitre">Navigation</p>
             <h1>{headerTitle.title}</h1>
             {headerTitle.subtitle && <p className="header-subtitle">{headerTitle.subtitle}</p>}
           </div>
