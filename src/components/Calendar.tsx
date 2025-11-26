@@ -1,168 +1,182 @@
-/**
- * Calendrier mensuel minimaliste.
- * - Couleurs par groupe de comité : ajuster la prop groupColors ou étendre le mapping si un 3e groupe est ajouté.
- * - Pastilles par comité : la prop committeeColors permet de changer le code couleur individuel.
- */
-import { useEffect, useMemo, useState } from 'react';
-import type { CommitteeGroup, CommitteeId, Session } from '../App';
+import { useMemo, useState } from 'react';
+import type { Session, CommitteeId } from '../App';
 
-const MONTHS_FR = [
-  'janvier',
-  'février',
-  'mars',
-  'avril',
-  'mai',
-  'juin',
-  'juillet',
-  'août',
-  'septembre',
-  'octobre',
-  'novembre',
-  'décembre',
+const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const MONTHS = [
+  'JANVIER',
+  'FÉVRIER',
+  'MARS',
+  'AVRIL',
+  'MAI',
+  'JUIN',
+  'JUILLET',
+  'AOÛT',
+  'SEPTEMBRE',
+  'OCTOBRE',
+  'NOVEMBRE',
+  'DÉCEMBRE',
 ];
 
-const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-
-function pad(value: number) {
-  return value.toString().padStart(2, '0');
+function makeDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
-function formatKey(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+interface CalendarProps {
+  sessions?: Session[];
+  committeeFilter?: CommitteeId | 'all';
+  onSelectDate?: (isoDate: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [extra: string]: any;
 }
 
-function buildMonthGrid(reference: Date) {
-  const firstDay = new Date(reference.getFullYear(), reference.getMonth(), 1);
-  const startOffset = (firstDay.getDay() + 6) % 7; // lundi = 0
-  const startDate = new Date(firstDay);
-  startDate.setDate(firstDay.getDate() - startOffset);
+export default function Calendar(props: CalendarProps) {
+  const allSessions: Session[] = (props.sessions ?? []) as Session[];
+  const committeeFilter = props.committeeFilter ?? 'all';
 
-  const cells: Date[] = [];
-  for (let i = 0; i < 42; i++) {
-    const current = new Date(startDate);
-    current.setDate(startDate.getDate() + i);
-    cells.push(current);
-  }
-  return cells;
-}
-
-type CalendarProps = {
-  sessions: Session[];
-  selectedDate: string | null;
-  onSelectDate: (date: string | null) => void;
-  groupColors: Record<CommitteeGroup, string>;
-  committeeColors: Record<CommitteeId, { label: string; group: CommitteeGroup; color: string }>;
-};
-
-export default function Calendar({
-  sessions,
-  selectedDate,
-  onSelectDate,
-  groupColors,
-  committeeColors,
-}: CalendarProps) {
-  const [viewDate, setViewDate] = useState(() => new Date());
-
-  useEffect(() => {
-    if (selectedDate) {
-      const parsed = new Date(selectedDate);
-      if (!Number.isNaN(parsed.getTime())) {
-        setViewDate(parsed);
-      }
-    }
-  }, [selectedDate]);
+  const today = new Date();
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
 
   const sessionsByDate = useMemo(() => {
-    return sessions.reduce<Record<string, Session[]>>((acc, session) => {
-      const key = session.date;
-      acc[key] = acc[key] ? [...acc[key], session] : [session];
-      return acc;
-    }, {});
-  }, [sessions]);
+    const map = new Map<string, Session[]>();
 
-  const currentMonthLabel = `${MONTHS_FR[viewDate.getMonth()]?.toUpperCase()} ${viewDate.getFullYear()}`;
-  const days = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
-  const todayKey = formatKey(new Date());
+    for (const s of allSessions) {
+      if (committeeFilter !== 'all' && s.committeeId !== committeeFilter) continue;
+      const key = s.date; // format YYYY-MM-DD
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
 
-  const changeMonth = (delta: number) => {
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
-  };
+    return map;
+  }, [allSessions, committeeFilter]);
 
-  const toggleDate = (dateKey: string) => {
-    onSelectDate(selectedDate === dateKey ? null : dateKey);
-  };
+  const monthCellDates = useMemo(() => {
+    const firstOfMonth = new Date(currentYear, currentMonth, 1);
+    const jsDay = firstOfMonth.getDay(); // 0..6 (0 = dimanche)
+    const firstWeekday = (jsDay + 6) % 7; // 0 = lundi, 6 = dimanche
+
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const cells: (Date | null)[] = [];
+
+    // 42 cases = 6 semaines
+    for (let index = 0; index < 42; index++) {
+      const dayNumber = index - firstWeekday + 1;
+      if (dayNumber < 1 || dayNumber > daysInMonth) {
+        cells.push(null);
+      } else {
+        cells.push(new Date(currentYear, currentMonth, dayNumber));
+      }
+    }
+
+    return cells;
+  }, [currentYear, currentMonth]);
+
+  function goToPreviousMonth() {
+    setCurrentMonth((prev) => {
+      if (prev === 0) {
+        setCurrentYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  }
+
+  function goToNextMonth() {
+    setCurrentMonth((prev) => {
+      if (prev === 11) {
+        setCurrentYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  }
 
   return (
-    <div className="calendar-card">
+    <div className="calendar">
       <div className="calendar-header">
-        <button className="bouton-lien" aria-label="Mois précédent" onClick={() => changeMonth(-1)}>
+        <button
+          type="button"
+          className="calendar-nav-btn"
+          onClick={goToPreviousMonth}
+        >
           ‹
         </button>
-        <div className="calendar__title">{currentMonthLabel}</div>
-        <button className="bouton-lien" aria-label="Mois suivant" onClick={() => changeMonth(1)}>
+
+        <div className="calendar-month">
+          {MONTHS[currentMonth]} {currentYear}
+        </div>
+
+        <button
+          type="button"
+          className="calendar-nav-btn"
+          onClick={goToNextMonth}
+        >
           ›
         </button>
       </div>
 
-      <div className="calendar__weekdays">
-        {WEEK_DAYS.map((day) => (
-          <span key={day}>{day}</span>
+      <div className="calendar-weekdays">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="calendar-weekday">
+            {d}
+          </div>
         ))}
       </div>
 
-      <div className="calendar-grid" role="grid" aria-label={`Calendrier ${currentMonthLabel}`}>
-        {days.map((day) => {
-          const key = formatKey(day);
-          const isCurrentMonth = day.getMonth() === viewDate.getMonth();
-          const isSelected = selectedDate === key;
-          const daySessions = sessionsByDate[key] || [];
-          const hasSessions = daySessions.length > 0;
-          const hasMultipleGroups = new Set(daySessions.map((s) => s.committeeGroup)).size > 1;
-          const indicatorGroups = Array.from(new Set(daySessions.map((s) => s.committeeGroup)));
-          const hasCCU = indicatorGroups.includes('CCU');
-          const hasCCSRM = indicatorGroups.includes('CCSRM');
+      <div className="calendar-grid">
+        {monthCellDates.map((cellDate, index) => {
+          if (!cellDate) {
+            return (
+              <div
+                key={index}
+                className="calendar-day calendar-day--empty"
+              />
+            );
+          }
+
+          const key = makeDateKey(cellDate);
+          const sessionsOnDay = sessionsByDate.get(key) ?? [];
+          const hasSessions = sessionsOnDay.length > 0;
+          const committees = Array.from(
+            new Set(sessionsOnDay.map((s) => s.committeeId)),
+          );
+
+          const isToday =
+            cellDate.getFullYear() === today.getFullYear() &&
+            cellDate.getMonth() === today.getMonth() &&
+            cellDate.getDate() === today.getDate();
+
+          const baseClass = [
+            'calendar-day',
+            hasSessions ? 'calendar-day--has-session' : '',
+            isToday ? 'calendar-day--today' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
 
           return (
             <button
-              key={key}
-              className={`calendar-day ${!isCurrentMonth ? 'is-outside-month' : ''} ${
-                hasSessions ? 'has-session' : ''
-              } ${hasCCU ? 'is-ccu' : ''} ${hasCCSRM ? 'is-ccsrm' : ''} ${isSelected ? 'is-selected' : ''} ${
-                key === todayKey ? 'is-today' : ''
-              }`}
-              onClick={() => toggleDate(key)}
-              role="gridcell"
-              aria-pressed={isSelected}
-              aria-label={`Le ${day.getDate()} ${MONTHS_FR[day.getMonth()]} ${day.getFullYear()}${
-                hasSessions ? `, ${daySessions.length} séance(s)` : ''
-              }`}
+              key={index}
+              type="button"
+              className={baseClass}
+              onClick={() => props.onSelectDate?.(key)}
             >
-              <span className="calendar__number">{day.getDate()}</span>
+              <span className="calendar-day-number">{cellDate.getDate()}</span>
+
               {hasSessions && (
-                <span
-                  className={`calendar__indicator ${hasMultipleGroups ? 'calendar__indicator--stacked' : ''}`}
-                  aria-hidden="true"
-                >
-                  {indicatorGroups.map((group) => (
-                    <span key={group} style={{ backgroundColor: groupColors[group] }} />
+                <div className="calendar-day-badges">
+                  {committees.map((c) => (
+                    <span
+                      key={c}
+                      className={`calendar-badge calendar-badge--${c.toLowerCase()}`}
+                    >
+                      {c}
+                    </span>
                   ))}
-                </span>
-              )}
-              {hasSessions && !hasMultipleGroups && (
-                <span className="calendar__badges">
-                  {daySessions.map((session) => {
-                    const committeeColor = committeeColors[session.committeeId]?.color ?? '#6b7280';
-                    return (
-                      <span
-                        key={`${session.id}-badge`}
-                        className="calendar__badge"
-                        style={{ backgroundColor: `${committeeColor}22`, color: committeeColor }}
-                      >
-                        {session.committeeId}
-                      </span>
-                    );
-                  })}
-                </span>
+                </div>
               )}
             </button>
           );
