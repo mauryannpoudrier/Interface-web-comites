@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-const DEFAULT_CENTER = { lat: 48.097, lng: -77.793 };
+const DEFAULT_CENTER = { lat: 48.109, lng: -77.796 };
 
 declare global {
   interface Window {
@@ -76,7 +76,7 @@ export function MapView({
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const center = useMemo(() => markers[0] ?? DEFAULT_CENTER, [markers]);
+  const center = useMemo(() => DEFAULT_CENTER, []);
 
   useEffect(() => {
     if (!mapRef.current) return;
