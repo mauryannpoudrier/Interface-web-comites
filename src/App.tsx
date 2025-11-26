@@ -454,6 +454,7 @@ function SubjectForm({
     (cat) => !cat.committeeGroup || cat.committeeGroup === committeeGroup,
   );
   const [newCategory, setNewCategory] = useState('');
+  const [categoryEditMode, setCategoryEditMode] = useState(false);
 
   const handleCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const selectedOptions = Array.from(event.target.selectedOptions).map((opt) => opt.value);
@@ -489,6 +490,10 @@ function SubjectForm({
       'categoriesIds',
       value.categoriesIds.filter((catId) => catId !== id),
     );
+  };
+
+  const toggleCategoryEdition = () => {
+    setCategoryEditMode((prev) => !prev);
   };
 
   return (
@@ -531,7 +536,12 @@ function SubjectForm({
         </label>
 
         <div className="form-block category-manager">
-          <label className="resolution-label">Gérer les catégories ({committeeGroup})</label>
+          <div className="category-manager-header">
+            <label className="resolution-label">Gérer les catégories ({committeeGroup})</label>
+            <button type="button" className="bouton-secondaire" onClick={toggleCategoryEdition}>
+              {categoryEditMode ? 'Terminer la modification' : 'Modifier les catégories'}
+            </button>
+          </div>
           <div className="tag-add-row">
             <input
               value={newCategory}
@@ -546,9 +556,11 @@ function SubjectForm({
             {filteredCategories.map((cat) => (
               <span key={cat.id} className="etiquette gestion-categorie">
                 {cat.label}
-                <button type="button" aria-label={`Supprimer ${cat.label}`} onClick={() => removeCategory(cat.id)}>
-                  ✕
-                </button>
+                {categoryEditMode && (
+                  <button type="button" aria-label={`Supprimer ${cat.label}`} onClick={() => removeCategory(cat.id)}>
+                    ✕
+                  </button>
+                )}
               </span>
             ))}
             {filteredCategories.length === 0 && <p className="vide">Aucune catégorie pour ce comité.</p>}
@@ -585,11 +597,25 @@ function SubjectForm({
         />
       </div>
       <div className="actions-formulaire">
-        <button className="bouton-principal" type="button" onClick={onSubmit}>
+        <button
+          className="bouton-principal"
+          type="button"
+          onClick={() => {
+            setCategoryEditMode(false);
+            onSubmit();
+          }}
+        >
           Enregistrer le sujet
         </button>
         {onCancel && (
-          <button className="bouton-secondaire" type="button" onClick={onCancel}>
+          <button
+            className="bouton-secondaire"
+            type="button"
+            onClick={() => {
+              setCategoryEditMode(false);
+              onCancel();
+            }}
+          >
             Annuler
           </button>
         )}
@@ -643,18 +669,21 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
     .map((id) => categories.find((c) => c.id === id)?.label)
     .filter(Boolean) as string[];
   const mainNumbers = (subject.mainResolutionNumbers ?? [subject.subjectNumber]).filter(Boolean);
-  const titleNumber = mainNumbers.join(' · ');
+  const primaryNumber = mainNumbers[0] ?? '—';
+  const secondaryNumbers = mainNumbers.slice(1).filter((num) => num.trim());
+  const linkedResolutions = subject.resolutionNumbers.filter((num) => num.trim());
+  const keywords = subject.keywords.filter((kw) => kw.trim());
 
   return (
     <div className="card sujet-detail">
-      <div className="ligne-titre">
-        <h4>
-          {titleNumber || '—'} – {subject.subjectTitle}
-        </h4>
-        {subject.shortLabel && <span className="etiquette secondaire">{subject.shortLabel}</span>}
-      </div>
-      <p className="surTitre">Catégories</p>
-      <div className="meta">
+      <p className="subject-number">{primaryNumber}</p>
+      {secondaryNumbers.length > 0 && (
+        <p className="subject-number secondary">{secondaryNumbers.join(', ')}</p>
+      )}
+      <p className="subject-title">{subject.subjectTitle}</p>
+
+      <p className="subject-section">Catégories</p>
+      <div className="subject-badges">
         {categoryLabels.length ? (
           categoryLabels.map((label) => (
             <span key={label} className="etiquette">
@@ -665,55 +694,64 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
           <span className="etiquette neutre">Non classé</span>
         )}
       </div>
-      <p className="description">
-        {subject.longDescription.split('\n').map((line, idx) => (
-          <span key={idx}>
-            {line}
-            <br />
-          </span>
-        ))}
-      </p>
-      <div className="grille-docs">
-        <div>
-          <p className="surTitre">Extraits (résolutions)</p>
-          {subject.extraitDocuments.length ? (
-            <ul>
-              {subject.extraitDocuments.map((doc) => (
-                <li key={doc.label}>
-                  <a href={doc.url} target="_blank" rel="noreferrer">
-                    {doc.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+
+      <p className="subject-section">Extrait du procès-verbal</p>
+      {subject.extraitDocuments.length ? (
+        <ul className="subject-links">
+          {subject.extraitDocuments.map((doc) => (
+            <li key={doc.label}>
+              <a href={doc.url} target="_blank" rel="noreferrer">
+                {doc.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="subject-empty">Aucun extrait disponible.</p>
+      )}
+
+      <p className="subject-section">Pièces jointes</p>
+      {subject.attachments.length ? (
+        <ul className="subject-links">
+          {subject.attachments.map((doc) => (
+            <li key={doc.label}>
+              <a href={doc.url} target="_blank" rel="noreferrer">
+                {doc.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="subject-empty">Aucune pièce jointe.</p>
+      )}
+
+      <p className="subject-meta-line">
+        <span className="subject-section-inline">Mots-clés :</span>
+        <span className="subject-chip-row">
+          {keywords.length ? (
+            keywords.map((keyword) => (
+              <span key={keyword} className="etiquette clair">
+                {keyword}
+              </span>
+            ))
           ) : (
-            <p className="vide">Aucun extrait disponible.</p>
+            <span className="subject-empty-inline">Aucun mot-clé</span>
           )}
-        </div>
-        <div>
-          <p className="surTitre">Pièces jointes</p>
-          {subject.attachments.length ? (
-            <ul>
-              {subject.attachments.map((doc) => (
-                <li key={doc.label}>
-                  <a href={doc.url} target="_blank" rel="noreferrer">
-                    {doc.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="vide">Aucune pièce jointe.</p>
-          )}
-        </div>
-      </div>
-      <div className="meta">
-        <span className="etiquette clair">Mots-clés : {subject.keywords.join(', ') || '—'}</span>
-        <span className="etiquette clair">
-          Résolutions principales : {mainNumbers.join(', ') || '—'}
         </span>
-        <span className="etiquette clair">Résolutions liées : {subject.resolutionNumbers.join(', ') || '—'}</span>
-      </div>
+      </p>
+
+      <p className="subject-section">Résolution(s)/commentaire(s) en lien avec le sujet</p>
+      {linkedResolutions.length ? (
+        <div className="subject-chip-row">
+          {linkedResolutions.map((resolution) => (
+            <span key={resolution} className="etiquette clair">
+              {resolution}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="subject-empty">Aucun lien enregistré.</p>
+      )}
     </div>
   );
 }
