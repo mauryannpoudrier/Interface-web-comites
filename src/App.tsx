@@ -830,7 +830,8 @@ function CommitteePage({
                 lat: subject.location.lat,
                 lng: subject.location.lng,
                 color: MAP_PIN_COLORS[group],
-                title: subject.shortLabel || subject.subjectTitle,
+                title: subject.subjectTitle,
+                label: subject.subjectNumber,
                 subjectId: subject.id,
               },
             ]
@@ -987,7 +988,8 @@ function SearchPage({
           lat: subject.location!.lat,
           lng: subject.location!.lng,
           color: MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'],
-          title: subject.shortLabel || subject.subjectTitle,
+          title: subject.subjectTitle,
+          label: subject.subjectNumber,
           subjectId: subject.id,
         })),
     [results],
@@ -1096,9 +1098,12 @@ function SessionDetail({
   onDeleteSubject: (id: string) => void;
   onCreateCategory: (categorie: Category) => void;
   onSelectSujet: (sujetId: string) => void;
+  focusedSubjectId?: string | null;
 }) {
   const [editing, setEditing] = useState<Subject | null>(null);
   const [filterCat, setFilterCat] = useState<string>('');
+  const [locatingSubject, setLocatingSubject] = useState<Subject | null>(null);
+  const [draftLocation, setDraftLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [form, setForm] = useState<Omit<Subject, 'id' | 'sessionId'>>({
     subjectNumber: '',
     subjectTitle: '',
@@ -1118,6 +1123,20 @@ function SessionDetail({
       setForm(rest);
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (locatingSubject?.location) {
+      setDraftLocation({ lat: locatingSubject.location.lat, lng: locatingSubject.location.lng });
+    } else {
+      setDraftLocation(null);
+    }
+  }, [locatingSubject]);
+
+  useEffect(() => {
+    if (!focusedSubjectId) return;
+    const el = document.getElementById(`subject-${focusedSubjectId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [focusedSubjectId]);
 
   const save = () => {
     if (!form.subjectNumber || !form.subjectTitle || !form.longDescription) return;
@@ -1147,11 +1166,45 @@ function SessionDetail({
           lat: subject.location!.lat,
           lng: subject.location!.lng,
           color: MAP_PIN_COLORS[session.committeeGroup],
-          title: subject.shortLabel || subject.subjectTitle,
+          title: subject.subjectTitle,
+          label: subject.subjectNumber,
           subjectId: subject.id,
         })),
     [session.committeeGroup, visibles],
   );
+
+  const draftMarker = draftLocation
+    ? [
+        {
+          lat: draftLocation.lat,
+          lng: draftLocation.lng,
+          color: MAP_PIN_COLORS[session.committeeGroup],
+          title: locatingSubject?.subjectTitle || 'Localisation',
+          label: locatingSubject?.subjectNumber,
+        } satisfies MapMarker,
+      ]
+    : [];
+
+  const openLocationPicker = (subject: Subject) => {
+    setLocatingSubject(subject);
+    setDraftLocation(subject.location ? { lat: subject.location.lat, lng: subject.location.lng } : null);
+  };
+
+  const saveLocation = () => {
+    if (!locatingSubject || !draftLocation) return;
+    const updated: Subject = {
+      ...locatingSubject,
+      location: { ...draftLocation, pinColor: MAP_PIN_COLORS[session.committeeGroup] },
+    };
+    onUpsertSubject(updated);
+    setLocatingSubject(null);
+    setDraftLocation(null);
+  };
+
+  const closePicker = () => {
+    setLocatingSubject(null);
+    setDraftLocation(null);
+  };
 
   return (
     <div className="session-detail">
@@ -1213,9 +1266,16 @@ function SessionDetail({
       <div className="session-columns">
         <div className="liste-sujets">
           {visibles.map((subject) => (
-            <div key={subject.id} className="card">
+            <div
+              key={subject.id}
+              className={`card ${focusedSubjectId === subject.id ? 'subject-focused' : ''}`}
+              id={`subject-${subject.id}`}
+            >
               <SubjectDetail subject={subject} categories={categories} />
               <div className="actions">
+                <button className="bouton-principal" onClick={() => openLocationPicker(subject)}>
+                  {subject.location ? 'Mettre à jour la localisation' : 'Ajouter une localisation'}
+                </button>
                 <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
                   Modifier
                 </button>
@@ -1239,6 +1299,48 @@ function SessionDetail({
           />
         </div>
       </div>
+
+      {locatingSubject && (
+        <div className="modal-overlay">
+          <div className="card modal-panel">
+            <div className="entete-formulaire">
+              <div>
+                <p className="surTitre">Localisation</p>
+                <h3>
+                  Sujet {locatingSubject.subjectNumber} · {locatingSubject.subjectTitle}
+                </h3>
+                <p className="map-hint">
+                  Cliquez sur la carte pour positionner la demande. Un repère
+                  {session.committeeGroup === 'CCU' ? ' vert (CCU)' : ' bleu (CCSRM/CCC)'} sera ajouté.
+                </p>
+              </div>
+              <button className="bouton-lien" onClick={closePicker}>
+                Fermer
+              </button>
+            </div>
+            <MapView
+              title="Cliquez pour ajouter un point"
+              accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
+              markers={[...sessionMarkers, ...draftMarker]}
+              onPickLocation={(coords) => setDraftLocation(coords)}
+            />
+            <div className="actions-formulaire">
+              <div className="coordonnees">
+                <span>Lat : {draftLocation?.lat?.toFixed(6) ?? '—'}</span>
+                <span>Lng : {draftLocation?.lng?.toFixed(6) ?? '—'}</span>
+              </div>
+              <div className="modal-actions">
+                <button className="bouton-secondaire" onClick={closePicker}>
+                  Annuler
+                </button>
+                <button className="bouton-principal" disabled={!draftLocation} onClick={saveLocation}>
+                  Enregistrer la localisation
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1246,12 +1348,19 @@ function SessionDetail({
 export default function App() {
   const [state, setState] = useState<AppState>(loadInitialState);
   const [route, setRoute] = useState<Route>(() => (typeof window !== 'undefined' ? parseHash() : { page: 'home' }));
+  const [focusedSubjectId, setFocusedSubjectId] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => setRoute(parseHash());
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
   }, []);
+
+  useEffect(() => {
+    if (route.page !== 'session') {
+      setFocusedSubjectId(null);
+    }
+  }, [route]);
 
   useEffect(() => {
     saveState(state);
@@ -1313,6 +1422,7 @@ export default function App() {
     const session = state.sessions.find((s) => s.id === subject.sessionId);
     if (session) {
       navigate({ page: 'session', sessionId: session.id });
+      setFocusedSubjectId(sujetId);
     }
   };
 
@@ -1441,6 +1551,7 @@ export default function App() {
               onDeleteSubject={deleteSubject}
               onCreateCategory={createCategory}
               onSelectSujet={onSelectSujet}
+              focusedSubjectId={focusedSubjectId}
             />
           )}
           {route.page === 'session' && !currentSession && <p className="vide">Séance introuvable.</p>}

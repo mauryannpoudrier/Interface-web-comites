@@ -417,6 +417,41 @@ input {
   font-size: 14px;
 }
 
+.map-infowindow {
+  max-width: 220px;
+}
+
+.map-infowindow h4 {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.map-pin-label {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #111827;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.map-infowindow-btn {
+  display: inline-block;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.map-infowindow-btn:hover {
+  background: #1d4ed8;
+}
+
 .map-error {
   font-weight: 700;
   color: #991b1b;
@@ -433,6 +468,40 @@ input {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 20;
+}
+
+.modal-panel {
+  max-width: 960px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.coordonnees {
+  display: flex;
+  gap: 12px;
+  color: #4b5563;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.subject-focused {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 }
 
 .result-list {
