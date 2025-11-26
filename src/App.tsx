@@ -55,6 +55,7 @@ type Route =
   | { page: 'home' }
   | { page: 'ccu' }
   | { page: 'ccsrm' }
+  | { page: 'search' }
   | { page: 'session'; sessionId: string };
 
 const STORAGE_KEY = 'comites-valdor:v2';
@@ -196,6 +197,7 @@ function parseHash(): Route {
   if (!parts.length) return { page: 'home' };
   if (parts[0] === 'ccu') return { page: 'ccu' };
   if (parts[0] === 'ccsrm') return { page: 'ccsrm' };
+  if (parts[0] === 'search') return { page: 'search' };
   if (parts[0] === 'sessions' && parts[1]) return { page: 'session', sessionId: parts[1] };
   return { page: 'home' };
 }
@@ -208,6 +210,8 @@ function buildHash(route: Route) {
       return '#/ccu';
     case 'ccsrm':
       return '#/ccsrm';
+    case 'search':
+      return '#/search';
     case 'session':
       return `#/sessions/${route.sessionId}`;
     default:
@@ -340,6 +344,15 @@ function CategorySelector({
   );
 }
 
+function MapPlaceholder({ title, accent }: { title: string; accent: string }) {
+  return (
+    <div className="map-placeholder" style={{ borderColor: accent }}>
+      <div className="map-placeholder-bg" />
+      <p className="map-placeholder-title">{title}</p>
+    </div>
+  );
+}
+
 function SessionForm({
   value,
   onChange,
@@ -352,65 +365,60 @@ function SessionForm({
   onCancel?: () => void;
 }) {
   return (
-    <div className="card">
-      <div className="session-form">
-        <div className="form-row">
-          <div className="form-field">
-            <p className="surTitre">Séances</p>
-            <h2>Ajouter ou modifier une séance</h2>
-          </div>
-          <div className="form-field" style={{ textAlign: 'right' }}>
-            <Badge committeeId={value.committeeId} />
-          </div>
+    <div className="session-form">
+      <div className="form-row">
+        <div className="form-field">
+          <p className="surTitre">Séances</p>
+          <h2>Ajouter ou modifier une séance</h2>
         </div>
-        <div className="form-row">
-          <label className="form-field">
-            <span className="form-label">Numéro de séance</span>
-            <input value={value.sessionNumber} onChange={(e) => onChange('sessionNumber', e.target.value)} />
-          </label>
-          <label className="form-field">
-            <span className="form-label">Date</span>
-            <input type="date" value={value.date} onChange={(e) => onChange('date', e.target.value)} />
-          </label>
-          <label className="form-field">
-            <span className="form-label">Heure</span>
-            <input type="time" value={value.time ?? ''} onChange={(e) => onChange('time', e.target.value)} />
-          </label>
+        <div className="form-field" style={{ textAlign: 'right' }}>
+          <Badge committeeId={value.committeeId} />
         </div>
-        <div className="form-row">
-          <label className="form-field">
-            <span className="form-label">Comité</span>
-            <select
-              value={value.committeeId}
-              onChange={(e) => onChange('committeeId', e.target.value as CommitteeId)}
-            >
-              {Object.entries(COMMITTEES).map(([key, meta]) => (
-                <option key={key} value={key}>
-                  {meta.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="form-field">
-            <span className="form-label">Titre (optionnel)</span>
-            <input value={value.title ?? ''} onChange={(e) => onChange('title', e.target.value)} />
-          </label>
-        </div>
-        <DocumentListEditor
-          label="PV de séance"
-          items={value.pvDocuments}
-          onChange={(docs) => onChange('pvDocuments', docs)}
-        />
-        <div className="actions-formulaire">
-          <button className="bouton-principal" type="button" onClick={onSubmit}>
-            Enregistrer la séance
+      </div>
+      <div className="form-row">
+        <label className="form-field">
+          <span className="form-label">Numéro de séance</span>
+          <input value={value.sessionNumber} onChange={(e) => onChange('sessionNumber', e.target.value)} />
+        </label>
+        <label className="form-field">
+          <span className="form-label">Date</span>
+          <input type="date" value={value.date} onChange={(e) => onChange('date', e.target.value)} />
+        </label>
+        <label className="form-field">
+          <span className="form-label">Heure</span>
+          <input type="time" value={value.time ?? ''} onChange={(e) => onChange('time', e.target.value)} />
+        </label>
+      </div>
+      <div className="form-row">
+        <label className="form-field">
+          <span className="form-label">Comité</span>
+          <select value={value.committeeId} onChange={(e) => onChange('committeeId', e.target.value as CommitteeId)}>
+            {Object.entries(COMMITTEES).map(([key, meta]) => (
+              <option key={key} value={key}>
+                {meta.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="form-field">
+          <span className="form-label">Titre (optionnel)</span>
+          <input value={value.title ?? ''} onChange={(e) => onChange('title', e.target.value)} />
+        </label>
+      </div>
+      <DocumentListEditor
+        label="PV de séance"
+        items={value.pvDocuments}
+        onChange={(docs) => onChange('pvDocuments', docs)}
+      />
+      <div className="actions-formulaire">
+        <button className="bouton-principal" type="button" onClick={onSubmit}>
+          Enregistrer la séance
+        </button>
+        {onCancel && (
+          <button className="bouton-secondaire" type="button" onClick={onCancel}>
+            Annuler
           </button>
-          {onCancel && (
-            <button className="bouton-secondaire" type="button" onClick={onCancel}>
-              Annuler
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
@@ -740,17 +748,9 @@ function HomePage({
   };
 
   return (
-    <>
-      <section>
-        <SessionForm
-          value={form}
-          onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
-          onSubmit={submit}
-          onCancel={() => setEditing(null)}
-        />
-      </section>
-      <section>
-        <div className="card">
+    <div className="home-screen">
+      <div className="home-grid">
+        <div className="card calendar-card">
           <div className="calendar-header">
             <div>
               <p className="surTitre">Calendrier</p>
@@ -766,17 +766,27 @@ function HomePage({
             committeeColors={COMMITTEES}
           />
         </div>
+        <div className="card add-session-card">
+          <SessionForm
+            value={form}
+            onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
+            onSubmit={submit}
+            onCancel={() => setEditing(null)}
+          />
+        </div>
+      </div>
+      <div className="card upcoming-card">
+        <div className="entete-liste">
+          <p className="surTitre">
+            {selectedDate ? `Séances du ${formatDate(selectedDate)}` : 'Séances à venir'}
+          </p>
+          {selectedDate && (
+            <button className="bouton-lien" type="button" onClick={() => setSelectedDate(null)}>
+              Tout voir
+            </button>
+          )}
+        </div>
         <div className="session-list">
-          <div className="entete-liste">
-            <p className="surTitre">
-              {selectedDate ? `Séances du ${formatDate(selectedDate)}` : 'Séances à venir'}
-            </p>
-            {selectedDate && (
-              <button className="bouton-lien" type="button" onClick={() => setSelectedDate(null)}>
-                Tout voir
-              </button>
-            )}
-          </div>
           {visibleSessions.map((session) => (
             <SessionCard
               key={session.id}
@@ -789,8 +799,8 @@ function HomePage({
           ))}
           {visibleSessions.length === 0 && <p className="vide">Aucune séance ce jour-là.</p>}
         </div>
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -811,7 +821,20 @@ function CommitteePage({
   const filteredSessions = sessions.filter((s) => s.committeeGroup === group);
 
   return (
-    <div className="page">
+    <div className="committee-page">
+      <div className="card map-card">
+        <div className="entete-formulaire">
+          <div>
+            <p className="surTitre">Carte globale</p>
+            <h2>Sujets {group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}</h2>
+          </div>
+          <span className="pastille">Carte</span>
+        </div>
+        <MapPlaceholder
+          title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
+          accent={COMMITTEE_GROUP_COLORS[group]}
+        />
+      </div>
       <div className="card filters-card">
         <div className="entete-formulaire">
           <div>
@@ -851,13 +874,18 @@ function CommitteePage({
                 <h3>{COMMITTEES[session.committeeId].label}</h3>
                 <p className="session-date">{formatDate(session.date, session.time)}</p>
               </div>
-              <div>
+              <div className="session-actions">
                 <button
                   className="bouton-secondaire"
                   onClick={() => navigate({ page: 'session', sessionId: session.id })}
                 >
                   Ouvrir la séance
                 </button>
+                {session.pvDocuments.map((doc) => (
+                  <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
+                    {doc.label}
+                  </a>
+                ))}
               </div>
               <div className="liste-sujets">
                 {visibles.map((subject) => (
@@ -868,6 +896,145 @@ function CommitteePage({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function SearchPage({
+  sessions,
+  subjects,
+  categories,
+  navigate,
+}: {
+  sessions: Session[];
+  subjects: Subject[];
+  categories: Category[];
+  navigate: (route: Route) => void;
+}) {
+  const [committee, setCommittee] = useState<CommitteeGroup | 'all'>('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState('');
+  const [resolution, setResolution] = useState('');
+
+  const toggleCategory = (id: string) => {
+    setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  };
+
+  const reset = () => {
+    setCommittee('all');
+    setSelectedCategories([]);
+    setKeywords('');
+    setResolution('');
+  };
+
+  const results = useMemo(() => {
+    return subjects
+      .map((subject) => {
+        const session = sessions.find((s) => s.id === subject.sessionId);
+        return { subject, session };
+      })
+      .filter((entry) => Boolean(entry.session))
+      .filter((entry) => {
+        if (!entry.session) return false;
+        if (committee !== 'all' && entry.session.committeeGroup !== committee) return false;
+        if (selectedCategories.length && !entry.subject.categoriesIds.some((c) => selectedCategories.includes(c))) {
+          return false;
+        }
+        if (keywords.trim()) {
+          const haystack = `${entry.subject.subjectTitle} ${entry.subject.longDescription} ${entry.subject.keywords.join(' ')}`.toLowerCase();
+          if (!haystack.includes(keywords.toLowerCase())) return false;
+        }
+        if (resolution.trim()) {
+          const hasResolution = entry.subject.resolutionNumbers.some((num) =>
+            num.toLowerCase().includes(resolution.toLowerCase()),
+          );
+          if (!hasResolution) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (b.session ? new Date(`${b.session.date}`).getTime() : 0) - (a.session ? new Date(`${a.session.date}`).getTime() : 0));
+  }, [committee, keywords, resolution, selectedCategories, sessions, subjects]);
+
+  const filteredCategories = committee === 'all' ? categories : categories;
+
+  return (
+    <div className="search-page">
+      <div className="card map-card">
+        <div className="entete-formulaire">
+          <div>
+            <p className="surTitre">Carte globale</p>
+            <h2>Tous les sujets</h2>
+          </div>
+          <span className="pastille">Recherche</span>
+        </div>
+        <MapPlaceholder title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)" accent="#f24405" />
+      </div>
+
+      <div className="card filters-card">
+        <div className="filters-grid">
+          <label>
+            <span className="form-label">Type de comité</span>
+            <select value={committee} onChange={(e) => setCommittee(e.target.value as CommitteeGroup | 'all')}>
+              <option value="all">Tous</option>
+              <option value="CCU">CCU</option>
+              <option value="CCSRM">CCSRM/CCC</option>
+            </select>
+          </label>
+          <label>
+            <span className="form-label">Mots-clés</span>
+            <input
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              placeholder="Titre, commentaire, etc."
+            />
+          </label>
+          <label>
+            <span className="form-label"># Résolution / commentaire</span>
+            <input value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="2025-04" />
+          </label>
+        </div>
+        <div className="categories">
+          {filteredCategories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className={`tag ${selectedCategories.includes(cat.id) ? 'actif' : ''}`}
+              onClick={() => toggleCategory(cat.id)}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+        <div className="actions-formulaire align-end">
+          <button className="bouton-secondaire" type="button" onClick={reset}>
+            Réinitialiser / Afficher tout
+          </button>
+        </div>
+      </div>
+
+      <div className="card results-card">
+        <div className="entete-liste">
+          <p className="surTitre">Résultat de la recherche</p>
+          <span className="pastille">{results.length} sujets</span>
+        </div>
+        <div className="result-list">
+          {results.map(({ subject, session }) => (
+            <button
+              key={subject.id}
+              className={`result-card ${session?.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm'}`}
+              onClick={() => session && navigate({ page: 'session', sessionId: session.id })}
+            >
+              <div className="result-meta">
+                <span className="surTitre">{session?.sessionNumber}</span>
+                <Badge committeeId={session?.committeeId ?? 'CCU'} />
+              </div>
+              <h3>{subject.subjectTitle}</h3>
+              <p className="result-infos">{session ? formatDate(session.date, session.time) : ''}</p>
+            </button>
+          ))}
+          {results.length === 0 && <p className="vide">Aucun sujet trouvé.</p>}
+        </div>
       </div>
     </div>
   );
@@ -932,79 +1099,89 @@ function SessionDetail({
   const visibles = filterCat ? subjects.filter((s) => s.categoriesIds.includes(filterCat)) : subjects;
 
   return (
-    <div className="page">
-      <div className="card">
-        <div className="entete-seance">
-          <div>
-            <p className="surTitre">{session.sessionNumber}</p>
-            <h2>
-              {COMMITTEES[session.committeeId].label} – {session.title || 'Séance'}
-            </h2>
-            <p className="date">
-              {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
-            </p>
-          </div>
-          <Badge committeeId={session.committeeId} />
-        </div>
-        <div className="meta">
-          {session.pvDocuments.length ? (
-            session.pvDocuments.map((doc) => (
-              <a key={doc.label} className="bouton-secondaire" href={doc.url} target="_blank" rel="noreferrer">
-                Ouvrir le PV · {doc.label}
-              </a>
-            ))
-          ) : (
-            <p className="vide">Aucun PV attaché.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="card filters-card">
-        <div className="entete-formulaire">
-          <div>
-            <p className="surTitre">Filtres</p>
-            <h3>Sujets de la séance</h3>
-          </div>
-          <span className="pastille">Filtrage</span>
-        </div>
-        <label>
-          Filtrer par catégorie
-          <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
-            <option value="">Toutes</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="liste-sujets">
-        {visibles.map((subject) => (
-          <div key={subject.id} className="card">
-            <SubjectDetail subject={subject} categories={categories} />
-            <div className="actions">
-              <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
-                Modifier
-              </button>
-              <button className="bouton-lien" onClick={() => onDeleteSubject(subject.id)}>
-                Supprimer
-              </button>
+    <div className="session-detail">
+      <div className="session-detail-grid">
+        <div className="card session-info">
+          <div className="entete-seance">
+            <div>
+              <p className="surTitre">{session.sessionNumber}</p>
+              <h2>
+                {COMMITTEES[session.committeeId].label} – {session.title || 'Séance'}
+              </h2>
+              <p className="date">
+                {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
+              </p>
             </div>
+            <Badge committeeId={session.committeeId} />
           </div>
-        ))}
-        {visibles.length === 0 && <p className="vide">Aucun sujet pour cette séance.</p>}
+          <MapPlaceholder
+            title="Carte en vue satellite avec seulement les sujets de cette séance"
+            accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
+          />
+          <div className="meta">
+            {session.pvDocuments.length ? (
+              session.pvDocuments.map((doc) => (
+                <a key={doc.label} className="bouton-secondaire" href={doc.url} target="_blank" rel="noreferrer">
+                  Ouvrir le PV · {doc.label}
+                </a>
+              ))
+            ) : (
+              <p className="vide">Aucun PV attaché.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="card filters-card">
+          <div className="entete-formulaire">
+            <div>
+              <p className="surTitre">Filtres</p>
+              <h3>Sujets de la séance</h3>
+            </div>
+            <span className="pastille">Filtrage</span>
+          </div>
+          <label>
+            Filtrer par catégorie
+            <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
+              <option value="">Toutes</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
-      <SubjectForm
-        value={form}
-        onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
-        onSubmit={save}
-        onCancel={() => setEditing(null)}
-        categories={categories}
-        onCreateCategory={onCreateCategory}
-      />
+      <div className="session-columns">
+        <div className="liste-sujets">
+          {visibles.map((subject) => (
+            <div key={subject.id} className="card">
+              <SubjectDetail subject={subject} categories={categories} />
+              <div className="actions">
+                <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
+                  Modifier
+                </button>
+                <button className="bouton-lien" onClick={() => onDeleteSubject(subject.id)}>
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ))}
+          {visibles.length === 0 && <p className="vide">Aucun sujet pour cette séance.</p>}
+        </div>
+
+        <div className="card sujet-form-panel">
+          <SubjectForm
+            value={form}
+            onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
+            onSubmit={save}
+            onCancel={() => setEditing(null)}
+            categories={categories}
+            onCreateCategory={onCreateCategory}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1075,76 +1252,130 @@ export default function App() {
 
   const currentSession = route.page === 'session' ? state.sessions.find((s) => s.id === route.sessionId) : undefined;
 
+  const theme =
+    route.page === 'ccu'
+      ? 'ccu'
+      : route.page === 'ccsrm'
+        ? 'ccsrm'
+        : route.page === 'session' && currentSession
+          ? currentSession.committeeGroup === 'CCU'
+            ? 'ccu'
+            : 'ccsrm'
+          : 'home';
+
+  const headerTitle = (() => {
+    if (route.page === 'ccu' || (route.page === 'session' && currentSession?.committeeGroup === 'CCU')) {
+      return {
+        title: 'CCU – Comité consultatif d’urbanisme',
+        subtitle: '',
+      };
+    }
+    if (route.page === 'ccsrm' || (route.page === 'session' && currentSession?.committeeGroup === 'CCSRM')) {
+      return {
+        title: 'CCSRM – Comité consultatif de la sécurité routière et de mobilité',
+        subtitle: '(Anciennement CCC – Comité consultatif de circulation)',
+      };
+    }
+    if (route.page === 'search') {
+      return { title: 'Recherche', subtitle: 'Filtrer les sujets CCU et CCSRM/CCC' };
+    }
+    return {
+      title: 'Ville de Val-d’Or',
+      subtitle: 'Suivi des comités CCU et CCSRM/CCC',
+    };
+  })();
+
   return (
-    <div className="app-shell">
-      <header className="hero-card">
-        <div className="hero-card-inner">
-          <div className="hero-title-block">
-            <p className="hero-pill">
-              <span className="hero-pill-dot" />
-              Ville de Val-d’Or
-            </p>
-            <h1>Ville de Val-d’Or</h1>
-            <h2>Suivi des comités CCC, CCSRM et CCU</h2>
-            <p className="intro">
-              Navigation par groupes, séances et sujets. Les données sont conservées localement (localStorage) pour vos essais.
-            </p>
-          </div>
-          <div className="badge">Prototype interne</div>
-        </div>
-        <nav className="top-nav-tabs">
-          <button className={route.page === 'home' ? 'is-active' : ''} onClick={() => navigate({ page: 'home' })}>
+    <div className={`app-frame theme-${theme}`}>
+      <aside className="sidebar">
+        <div className="sidebar-logo">Comités</div>
+        <nav className="sidebar-nav">
+          <button className={route.page === 'home' ? 'active' : ''} onClick={() => navigate({ page: 'home' })}>
+            <span>🏠</span>
             Accueil
           </button>
-          <button className={route.page === 'ccu' ? 'is-active' : ''} onClick={() => navigate({ page: 'ccu' })}>
-            Urbanisme (CCU)
+          <button className={route.page === 'ccu' ? 'active' : ''} onClick={() => navigate({ page: 'ccu' })}>
+            <span>🏗️</span>
+            CCU
           </button>
-          <button className={route.page === 'ccsrm' ? 'is-active' : ''} onClick={() => navigate({ page: 'ccsrm' })}>
-            Mobilité & sécurité (CCC / CCSRM)
+          <button className={route.page === 'ccsrm' ? 'active' : ''} onClick={() => navigate({ page: 'ccsrm' })}>
+            <span>🚦</span>
+            CCSRM/CCC
           </button>
         </nav>
-      </header>
+        <div className="sidebar-bottom">
+          <button className={route.page === 'search' ? 'active' : ''} onClick={() => navigate({ page: 'search' })}>
+            <span>🔎</span>
+            Recherche
+          </button>
+        </div>
+      </aside>
 
-      <main className={route.page === 'home' ? 'app-layout' : ''}>
-        {route.page === 'home' && (
-          <HomePage
-            sessions={state.sessions}
-            subjects={state.subjects}
-            onUpsert={upsertSession}
-            onDelete={deleteSession}
-            navigate={navigate}
-          />
-        )}
-        {route.page === 'ccu' && (
-          <CommitteePage
-            group="CCU"
-            sessions={state.sessions}
-            subjects={state.subjects}
-            categories={state.categories}
-            navigate={navigate}
-          />
-        )}
-        {route.page === 'ccsrm' && (
-          <CommitteePage
-            group="CCSRM"
-            sessions={state.sessions}
-            subjects={state.subjects}
-            categories={state.categories}
-            navigate={navigate}
-          />
-        )}
-        {route.page === 'session' && currentSession && (
-          <SessionDetail
-            session={currentSession}
-            subjects={state.subjects.filter((s) => s.sessionId === currentSession.id)}
-            categories={state.categories}
-            onUpsertSubject={upsertSubject}
-            onDeleteSubject={deleteSubject}
-            onCreateCategory={createCategory}
-          />
-        )}
-        {route.page === 'session' && !currentSession && <p className="vide">Séance introuvable.</p>}
-      </main>
+      <div className="app-main">
+        <header className="global-header">
+          <div className="user-chip">
+            <div className="avatar" aria-hidden />
+            <div>
+              <p className="surTitre">Utilisateur</p>
+              <strong>Nom, Prénom</strong>
+            </div>
+          </div>
+          <div className="header-titles">
+            <p className="surTitre">Navigation</p>
+            <h1>{headerTitle.title}</h1>
+            {headerTitle.subtitle && <p className="header-subtitle">{headerTitle.subtitle}</p>}
+          </div>
+        </header>
+
+        <main className="page-content">
+          {route.page === 'home' && (
+            <HomePage
+              sessions={state.sessions}
+              subjects={state.subjects}
+              onUpsert={upsertSession}
+              onDelete={deleteSession}
+              navigate={navigate}
+            />
+          )}
+          {route.page === 'ccu' && (
+            <CommitteePage
+              group="CCU"
+              sessions={state.sessions}
+              subjects={state.subjects}
+              categories={state.categories}
+              navigate={navigate}
+            />
+          )}
+          {route.page === 'ccsrm' && (
+            <CommitteePage
+              group="CCSRM"
+              sessions={state.sessions}
+              subjects={state.subjects}
+              categories={state.categories}
+              navigate={navigate}
+            />
+          )}
+          {route.page === 'search' && (
+            <SearchPage
+              sessions={state.sessions}
+              subjects={state.subjects}
+              categories={state.categories}
+              navigate={navigate}
+            />
+          )}
+          {route.page === 'session' && currentSession && (
+            <SessionDetail
+              session={currentSession}
+              subjects={state.subjects.filter((s) => s.sessionId === currentSession.id)}
+              categories={state.categories}
+              onUpsertSubject={upsertSubject}
+              onDeleteSubject={deleteSubject}
+              onCreateCategory={createCategory}
+            />
+          )}
+          {route.page === 'session' && !currentSession && <p className="vide">Séance introuvable.</p>}
+        </main>
+      </div>
     </div>
   );
 }
