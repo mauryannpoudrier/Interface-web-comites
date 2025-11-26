@@ -352,7 +352,6 @@ function EditableTagList({
             </button>
           </div>
         ))}
-        {items.length === 0 && <p className="vide">Aucun élément pour l’instant.</p>}
       </div>
       <div className="tag-add-row">
         <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />
@@ -453,6 +452,13 @@ function SubjectForm({
   const filteredCategories = categories.filter(
     (cat) => !cat.committeeGroup || cat.committeeGroup === committeeGroup,
   );
+  const sortedCategories = useMemo(
+    () =>
+      [...filteredCategories].sort((a, b) =>
+        a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }),
+      ),
+    [filteredCategories],
+  );
   const [newCategory, setNewCategory] = useState('');
   const [categoryEditMode, setCategoryEditMode] = useState(false);
 
@@ -526,7 +532,7 @@ function SubjectForm({
         <label className="form-block">
           Catégories
           <select multiple value={value.categoriesIds} onChange={handleCategoryChange}>
-            {filteredCategories.map((cat) => (
+            {sortedCategories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.label}
               </option>
@@ -553,7 +559,7 @@ function SubjectForm({
             </button>
           </div>
           <div className="tag-pill-list">
-            {filteredCategories.map((cat) => (
+            {sortedCategories.map((cat) => (
               <span key={cat.id} className="etiquette gestion-categorie">
                 {cat.label}
                 {categoryEditMode && (
@@ -563,7 +569,7 @@ function SubjectForm({
                 )}
               </span>
             ))}
-            {filteredCategories.length === 0 && <p className="vide">Aucune catégorie pour ce comité.</p>}
+            {sortedCategories.length === 0 && <p className="vide">Aucune catégorie pour ce comité.</p>}
           </div>
         </div>
 
@@ -667,7 +673,8 @@ function SessionCard({
 function SubjectDetail({ subject, categories }: { subject: Subject; categories: Category[] }) {
   const categoryLabels = subject.categoriesIds
     .map((id) => categories.find((c) => c.id === id)?.label)
-    .filter(Boolean) as string[];
+    .filter((label): label is string => Boolean(label))
+    .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
   const mainNumbers = (subject.mainResolutionNumbers ?? [subject.subjectNumber]).filter(Boolean);
   const primaryNumber = mainNumbers[0] ?? '—';
   const secondaryNumbers = mainNumbers.slice(1).filter((num) => num.trim());
@@ -676,82 +683,86 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
 
   return (
     <div className="card sujet-detail">
-      <p className="subject-number">{primaryNumber}</p>
-      {secondaryNumbers.length > 0 && (
-        <p className="subject-number secondary">{secondaryNumbers.join(', ')}</p>
-      )}
-      <p className="subject-title">{subject.subjectTitle}</p>
-
-      <p className="subject-section">Catégories</p>
-      <div className="subject-badges">
-        {categoryLabels.length ? (
-          categoryLabels.map((label) => (
-            <span key={label} className="etiquette">
-              {label}
-            </span>
-          ))
-        ) : (
-          <span className="etiquette neutre">Non classé</span>
+      <div className="subject-header">
+        <p className="subject-number">{primaryNumber}</p>
+        {secondaryNumbers.length > 0 && (
+          <p className="subject-number secondary">{secondaryNumbers.join(', ')}</p>
         )}
+        <p className="subject-title">{subject.subjectTitle}</p>
       </div>
 
-      <p className="subject-section">Extrait du procès-verbal</p>
-      {subject.extraitDocuments.length ? (
-        <ul className="subject-links">
-          {subject.extraitDocuments.map((doc) => (
-            <li key={doc.label}>
-              <a href={doc.url} target="_blank" rel="noreferrer">
-                {doc.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="subject-empty">Aucun extrait disponible.</p>
-      )}
-
-      <p className="subject-section">Pièces jointes</p>
-      {subject.attachments.length ? (
-        <ul className="subject-links">
-          {subject.attachments.map((doc) => (
-            <li key={doc.label}>
-              <a href={doc.url} target="_blank" rel="noreferrer">
-                {doc.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="subject-empty">Aucune pièce jointe.</p>
-      )}
-
-      <p className="subject-meta-line">
-        <span className="subject-section-inline">Mots-clés :</span>
-        <span className="subject-chip-row">
-          {keywords.length ? (
-            keywords.map((keyword) => (
-              <span key={keyword} className="etiquette clair">
-                {keyword}
+      <div className="subject-body">
+        <p className="subject-section">Catégories</p>
+        <div className="subject-badges">
+          {categoryLabels.length ? (
+            categoryLabels.map((label) => (
+              <span key={label} className="etiquette">
+                {label}
               </span>
             ))
           ) : (
-            <span className="subject-empty-inline">Aucun mot-clé</span>
+            <span className="etiquette neutre">Non classé</span>
           )}
-        </span>
-      </p>
-
-      <p className="subject-section">Résolution(s)/commentaire(s) en lien avec le sujet</p>
-      {linkedResolutions.length ? (
-        <div className="subject-chip-row">
-          {linkedResolutions.map((resolution) => (
-            <span key={resolution} className="etiquette clair">
-              {resolution}
-            </span>
-          ))}
         </div>
-      ) : (
-        <p className="subject-empty">Aucun lien enregistré.</p>
-      )}
+
+        <p className="subject-section">Extrait du procès-verbal</p>
+        {subject.extraitDocuments.length ? (
+          <ul className="subject-links">
+            {subject.extraitDocuments.map((doc) => (
+              <li key={doc.label}>
+                <a href={doc.url} target="_blank" rel="noreferrer">
+                  {doc.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="subject-empty">Aucun extrait disponible.</p>
+        )}
+
+        <p className="subject-section">Pièces jointes</p>
+        {subject.attachments.length ? (
+          <ul className="subject-links">
+            {subject.attachments.map((doc) => (
+              <li key={doc.label}>
+                <a href={doc.url} target="_blank" rel="noreferrer">
+                  {doc.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="subject-empty">Aucune pièce jointe.</p>
+        )}
+
+        <p className="subject-meta-line">
+          <span className="subject-section-inline">Mots-clés :</span>
+          <span className="subject-chip-row">
+            {keywords.length ? (
+              keywords.map((keyword) => (
+                <span key={keyword} className="etiquette clair">
+                  {keyword}
+                </span>
+              ))
+            ) : (
+              <span className="subject-empty-inline">Aucun mot-clé</span>
+            )}
+          </span>
+        </p>
+
+        <p className="subject-section">Résolution(s)/commentaire(s) en lien avec le sujet</p>
+        {linkedResolutions.length ? (
+          <div className="subject-chip-row">
+            {linkedResolutions.map((resolution) => (
+              <span key={resolution} className="etiquette clair">
+                {resolution}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="subject-empty">Aucun lien enregistré.</p>
+        )}
+      </div>
     </div>
   );
 }

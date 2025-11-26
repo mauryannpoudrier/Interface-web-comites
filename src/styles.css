@@ -647,6 +647,19 @@ input {
   gap: 8px;
 }
 
+.subject-header {
+  display: grid;
+  gap: 4px;
+}
+
+.subject-body {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
 .subject-number {
   margin: 0;
   font-weight: 800;

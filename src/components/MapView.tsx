@@ -81,6 +81,7 @@ export function MapView({
 }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const mapInstanceRef = useRef<any | null>(null);
   const mapsRef = useRef<any | null>(null);
   const infoWindowRef = useRef<any | null>(null);
@@ -113,6 +114,8 @@ export function MapView({
         if (!infoWindowRef.current) {
           infoWindowRef.current = new maps.InfoWindow();
         }
+
+        setIsMapReady(true);
       })
       .catch((err) => {
         if (!canceled) {
@@ -128,7 +131,7 @@ export function MapView({
   useEffect(() => {
     const maps = mapsRef.current;
     const map = mapInstanceRef.current;
-    if (!maps || !map) return;
+    if (!maps || !map || !isMapReady) return;
 
     renderedMarkersRef.current.forEach((marker) => marker.setMap(null));
     renderedMarkersRef.current = markers.map((marker) => {
@@ -183,12 +186,12 @@ export function MapView({
       renderedMarkersRef.current.forEach((marker) => marker.setMap(null));
       renderedMarkersRef.current = [];
     };
-  }, [accent, center, markers, onSelectSujet]);
+  }, [accent, center, isMapReady, markers, onSelectSujet]);
 
   useEffect(() => {
     const maps = mapsRef.current;
     const map = mapInstanceRef.current;
-    if (!maps || !map) return;
+    if (!maps || !map || !isMapReady) return;
 
     if (pickListenerRef.current) {
       maps.event.removeListener(pickListenerRef.current);
@@ -209,7 +212,7 @@ export function MapView({
         pickListenerRef.current = null;
       }
     };
-  }, [onPickLocation]);
+  }, [isMapReady, onPickLocation]);
 
   return (
     <div className="map-shell" style={{ borderColor: accent }}>
