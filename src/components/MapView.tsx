@@ -75,12 +75,17 @@ export function MapView({
 }: {
   markers: Marker[];
   accent: string;
-  title: string;
+  title?: string;
   onSelectSujet?: (sujetId: string) => void;
   onPickLocation?: (coords: { lat: number; lng: number }) => void;
 }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const mapInstanceRef = useRef<any | null>(null);
+  const mapsRef = useRef<any | null>(null);
+  const infoWindowRef = useRef<any | null>(null);
+  const renderedMarkersRef = useRef<any[]>([]);
+  const pickListenerRef = useRef<any | null>(null);
 
   const center = useMemo(() => DEFAULT_CENTER, []);
 
@@ -88,80 +93,25 @@ export function MapView({
     if (!mapRef.current) return;
 
     let canceled = false;
-    let map: any = null;
-    let renderedMarkers: any[] = [];
-    let infoWindow: any = null;
-
     setError(null);
 
     loadGoogleMaps()
       .then((maps) => {
         if (!mapRef.current || canceled) return;
+        mapsRef.current = maps;
 
-        map = new maps.Map(mapRef.current, {
-          center,
-          zoom: markers.length > 1 ? 12 : 14,
-          mapTypeId: 'satellite',
-          disableDefaultUI: true,
-          fullscreenControl: false,
-        });
-
-        infoWindow = new maps.InfoWindow();
-
-        if (markers.length > 1) {
-          const bounds = new maps.LatLngBounds();
-          markers.forEach((marker) => bounds.extend({ lat: marker.lat, lng: marker.lng }));
-          map.fitBounds(bounds, 32);
+        if (!mapInstanceRef.current) {
+          mapInstanceRef.current = new maps.Map(mapRef.current, {
+            center,
+            zoom: markers.length > 1 ? 12 : 14,
+            mapTypeId: 'satellite',
+            disableDefaultUI: true,
+            fullscreenControl: false,
+          });
         }
 
-        renderedMarkers = markers.map((marker) => {
-          const googleMarker = new maps.Marker({
-            position: { lat: marker.lat, lng: marker.lng },
-            map,
-            title: marker.label ? `Sujet ${marker.label}` : marker.title,
-            icon: buildPin(marker.color ?? accent),
-            label: marker.label
-              ? {
-                  text: marker.label,
-                  color: '#ffffff',
-                  fontWeight: '700',
-                }
-              : undefined,
-          });
-
-          if (onSelectSujet && marker.subjectId) {
-            googleMarker.addListener('click', () => {
-              if (!infoWindow) {
-                onSelectSujet(marker.subjectId as string);
-                return;
-              }
-
-              const content = `
-                <div class="map-infowindow">
-                  <p class="map-pin-label">Sujet ${marker.label ?? ''}</p>
-                  <h4>${marker.title}</h4>
-                  <button id="voir-demande" class="map-infowindow-btn">Voir la demande</button>
-                </div>
-              `;
-              infoWindow.setContent(content);
-              infoWindow.open({ anchor: googleMarker, map });
-
-              maps.event.addListenerOnce(infoWindow, 'domready', () => {
-                const btn = document.getElementById('voir-demande');
-                btn?.addEventListener('click', () => onSelectSujet(marker.subjectId as string));
-              });
-            });
-          }
-
-          return googleMarker;
-        });
-
-        if (onPickLocation) {
-          map.addListener('click', (event: any) => {
-            const lat = event.latLng.lat();
-            const lng = event.latLng.lng();
-            onPickLocation({ lat, lng });
-          });
+        if (!infoWindowRef.current) {
+          infoWindowRef.current = new maps.InfoWindow();
         }
       })
       .catch((err) => {
@@ -172,18 +122,100 @@ export function MapView({
 
     return () => {
       canceled = true;
-      renderedMarkers.forEach((marker) => marker.setMap(null));
-      if (map) {
-        mapRef.current = null;
+    };
+  }, [accent, center, markers.length]);
+
+  useEffect(() => {
+    const maps = mapsRef.current;
+    const map = mapInstanceRef.current;
+    if (!maps || !map) return;
+
+    renderedMarkersRef.current.forEach((marker) => marker.setMap(null));
+    renderedMarkersRef.current = markers.map((marker) => {
+      const googleMarker = new maps.Marker({
+        position: { lat: marker.lat, lng: marker.lng },
+        map,
+        title: marker.label ? `Sujet ${marker.label}` : marker.title,
+        icon: buildPin(marker.color ?? accent),
+      });
+
+      if (onSelectSujet && marker.subjectId) {
+        googleMarker.addListener('click', () => {
+          if (!infoWindowRef.current) {
+            onSelectSujet(marker.subjectId as string);
+            return;
+          }
+
+          const labelText = marker.label ?? '—';
+          const content = `
+            <div class="map-infowindow">
+              <p class="map-pin-label">Sujet ${labelText}</p>
+              <h4>${marker.title}</h4>
+              <button id="voir-demande" class="map-infowindow-btn">Voir la demande</button>
+            </div>
+          `;
+          infoWindowRef.current.setContent(content);
+          infoWindowRef.current.open({ anchor: googleMarker, map });
+
+          maps.event.addListenerOnce(infoWindowRef.current, 'domready', () => {
+            const btn = document.getElementById('voir-demande');
+            btn?.addEventListener('click', () => onSelectSujet(marker.subjectId as string));
+          });
+        });
+      }
+
+      return googleMarker;
+    });
+
+    if (markers.length > 1) {
+      const bounds = new maps.LatLngBounds();
+      markers.forEach((marker) => bounds.extend({ lat: marker.lat, lng: marker.lng }));
+      map.fitBounds(bounds, 32);
+    } else if (markers.length === 1) {
+      map.setCenter({ lat: markers[0].lat, lng: markers[0].lng });
+      map.setZoom(14);
+    } else {
+      map.setCenter(center);
+      map.setZoom(12);
+    }
+
+    return () => {
+      renderedMarkersRef.current.forEach((marker) => marker.setMap(null));
+      renderedMarkersRef.current = [];
+    };
+  }, [accent, center, markers, onSelectSujet]);
+
+  useEffect(() => {
+    const maps = mapsRef.current;
+    const map = mapInstanceRef.current;
+    if (!maps || !map) return;
+
+    if (pickListenerRef.current) {
+      maps.event.removeListener(pickListenerRef.current);
+      pickListenerRef.current = null;
+    }
+
+    if (onPickLocation) {
+      pickListenerRef.current = map.addListener('click', (event: any) => {
+        const lat = event.latLng.lat();
+        const lng = event.latLng.lng();
+        onPickLocation({ lat, lng });
+      });
+    }
+
+    return () => {
+      if (pickListenerRef.current) {
+        maps.event.removeListener(pickListenerRef.current);
+        pickListenerRef.current = null;
       }
     };
-  }, [accent, center, markers, onPickLocation, onSelectSujet]);
+  }, [onPickLocation]);
 
   return (
     <div className="map-shell" style={{ borderColor: accent }}>
       <div ref={mapRef} className="map-canvas" />
       <div className="map-overlay">
-        <p className="map-title">{title}</p>
+        {title && <span className="sr-only">{title}</span>}
         {markers.length === 0 && <p className="map-hint">Aucun sujet géolocalisé pour ce filtre.</p>}
         {error && <p className="map-error">{error}</p>}
       </div>
