@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Calendar from './components/Calendar';
+import MapView, { type MapMarker } from './components/MapView';
 
 export type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
 export type CommitteeGroup = 'CCSRM' | 'CCU';
@@ -340,15 +341,6 @@ function CategorySelector({
           Ajouter
         </button>
       </div>
-    </div>
-  );
-}
-
-function MapPlaceholder({ title, accent }: { title: string; accent: string }) {
-  return (
-    <div className="map-placeholder" style={{ borderColor: accent }}>
-      <div className="map-placeholder-bg" />
-      <p className="map-placeholder-title">{title}</p>
     </div>
   );
 }
@@ -819,6 +811,24 @@ function CommitteePage({
 }) {
   const [filterCat, setFilterCat] = useState<string>('');
   const filteredSessions = sessions.filter((s) => s.committeeGroup === group);
+  const mapMarkers: MapMarker[] = useMemo(() => {
+    const sessionIds = filteredSessions.map((s) => s.id);
+    return subjects
+      .filter((subject) => sessionIds.includes(subject.sessionId))
+      .filter((subject) => (filterCat ? subject.categoriesIds.includes(filterCat) : true))
+      .flatMap((subject) =>
+        subject.location
+          ? [
+              {
+                lat: subject.location.lat,
+                lng: subject.location.lng,
+                color: subject.location.pinColor ?? COMMITTEE_GROUP_COLORS[group],
+                title: subject.shortLabel || subject.subjectTitle,
+              },
+            ]
+          : [],
+      );
+  }, [filteredSessions, filterCat, group, subjects]);
 
   return (
     <div className="committee-page">
@@ -830,9 +840,10 @@ function CommitteePage({
           </div>
           <span className="pastille">Carte</span>
         </div>
-        <MapPlaceholder
+        <MapView
           title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
           accent={COMMITTEE_GROUP_COLORS[group]}
+          markers={mapMarkers}
         />
       </div>
       <div className="card filters-card">
@@ -957,6 +968,20 @@ function SearchPage({
   }, [committee, keywords, resolution, selectedCategories, sessions, subjects]);
 
   const filteredCategories = committee === 'all' ? categories : categories;
+  const resultMarkers: MapMarker[] = useMemo(
+    () =>
+      results
+        .filter(({ subject }) => Boolean(subject.location))
+        .map(({ subject, session }) => ({
+          lat: subject.location!.lat,
+          lng: subject.location!.lng,
+          color:
+            subject.location?.pinColor ||
+            (session ? COMMITTEE_GROUP_COLORS[session.committeeGroup] : '#f24405'),
+          title: subject.shortLabel || subject.subjectTitle,
+        })),
+    [results],
+  );
 
   return (
     <div className="search-page">
@@ -968,7 +993,11 @@ function SearchPage({
           </div>
           <span className="pastille">Recherche</span>
         </div>
-        <MapPlaceholder title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)" accent="#f24405" />
+        <MapView
+          title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)"
+          accent="#f24405"
+          markers={resultMarkers}
+        />
       </div>
 
       <div className="card filters-card">
@@ -1097,6 +1126,18 @@ function SessionDetail({
   };
 
   const visibles = filterCat ? subjects.filter((s) => s.categoriesIds.includes(filterCat)) : subjects;
+  const sessionMarkers: MapMarker[] = useMemo(
+    () =>
+      visibles
+        .filter((subject) => Boolean(subject.location))
+        .map((subject) => ({
+          lat: subject.location!.lat,
+          lng: subject.location!.lng,
+          color: subject.location?.pinColor ?? COMMITTEE_GROUP_COLORS[session.committeeGroup],
+          title: subject.shortLabel || subject.subjectTitle,
+        })),
+    [session.committeeGroup, visibles],
+  );
 
   return (
     <div className="session-detail">
@@ -1114,9 +1155,10 @@ function SessionDetail({
             </div>
             <Badge committeeId={session.committeeId} />
           </div>
-          <MapPlaceholder
+          <MapView
             title="Carte en vue satellite avec seulement les sujets de cette séance"
             accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
+            markers={sessionMarkers}
           />
           <div className="meta">
             {session.pvDocuments.length ? (
