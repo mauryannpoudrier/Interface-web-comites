@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
 
@@ -244,10 +244,12 @@ function DocumentListEditor({
   label,
   items,
   onChange,
+  addLabel = '+ Ajouter un document',
 }: {
   label: string;
   items: DocumentLink[];
   onChange: (docs: DocumentLink[]) => void;
+  addLabel?: string;
 }) {
   const updateItem = (index: number, key: keyof DocumentLink, value: string) => {
     onChange(items.map((doc, idx) => (idx === index ? { ...doc, [key]: value } : doc)));
@@ -262,7 +264,7 @@ function DocumentListEditor({
           className="bouton-lien"
           onClick={() => onChange([...items, { label: 'Nouveau document', url: '' }])}
         >
-          + Ajouter un document
+          {addLabel}
         </button>
       </div>
       {items.map((doc, index) => (
@@ -284,73 +286,6 @@ function DocumentListEditor({
         </button>
       </div>
       ))}
-    </div>
-  );
-}
-
-function CategorySelector({
-  categories,
-  selected,
-  onChange,
-  onCreate,
-}: {
-  categories: Category[];
-  selected: string[];
-  onChange: (values: string[]) => void;
-  onCreate: (categorie: Category) => void;
-}) {
-  const [newCategory, setNewCategory] = useState({ label: '', color: '' });
-
-  const toggle = (id: string) => {
-    onChange(selected.includes(id) ? selected.filter((cat) => cat !== id) : [...selected, id]);
-  };
-
-  const addCategory = () => {
-    if (!newCategory.label.trim()) return;
-    const id = newCategory.label.toLowerCase().replace(/[^a-z0-9]+/gi, '-');
-    const created = { id, label: newCategory.label.trim(), color: newCategory.color || undefined };
-    onCreate(created);
-    onChange([...selected, created.id]);
-    setNewCategory({ label: '', color: '' });
-  };
-
-  return (
-    <div className="bloc">
-      <p className="surTitre">Catégories</p>
-      <div className="categories">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            type="button"
-            className={`tag ${selected.includes(cat.id) ? 'actif' : ''}`}
-            style={{ borderColor: cat.color ?? '#d0d7ff', color: cat.color ?? '#111827' }}
-            onClick={() => toggle(cat.id)}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
-      <div className="ligne-formulaire nouveau-cat">
-        <label>
-          + Nouvelle catégorie
-          <input
-            value={newCategory.label}
-            onChange={(e) => setNewCategory((prev) => ({ ...prev, label: e.target.value }))}
-            placeholder="Titre de la catégorie"
-          />
-        </label>
-        <label>
-          Couleur (optionnel)
-          <input
-            value={newCategory.color}
-            onChange={(e) => setNewCategory((prev) => ({ ...prev, color: e.target.value }))}
-            placeholder="#14b8a6"
-          />
-        </label>
-        <button type="button" className="bouton-secondaire" onClick={addCategory}>
-          Ajouter
-        </button>
-      </div>
     </div>
   );
 }
@@ -428,16 +363,37 @@ function SubjectForm({
   onSubmit,
   onCancel,
   categories,
-  onCreateCategory,
 }: {
   value: Omit<Subject, 'id' | 'sessionId'>;
   onChange: (field: keyof Omit<Subject, 'id' | 'sessionId'>, val: unknown) => void;
   onSubmit: () => void;
   onCancel?: () => void;
   categories: Category[];
-  onCreateCategory: (categorie: Category) => void;
 }) {
   const parseList = (input: string) => input.split(',').map((v) => v.trim()).filter(Boolean);
+
+  const handleCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(event.target.selectedOptions).map((opt) => opt.value);
+    onChange('categoriesIds', selectedOptions);
+  };
+
+  const updateResolution = (index: number, val: string) => {
+    onChange(
+      'resolutionNumbers',
+      value.resolutionNumbers.map((item, idx) => (idx === index ? val : item)),
+    );
+  };
+
+  const addResolutionField = () => {
+    onChange('resolutionNumbers', [...value.resolutionNumbers, '']);
+  };
+
+  const removeResolutionField = (index: number) => {
+    onChange(
+      'resolutionNumbers',
+      value.resolutionNumbers.filter((_, idx) => idx !== index),
+    );
+  };
 
   return (
     <div className="card sujet-form">
@@ -446,112 +402,82 @@ function SubjectForm({
           <p className="surTitre">Sujet</p>
           <h3>Ajouter / modifier un sujet</h3>
         </div>
-        <span className="pastille">Dossier</span>
       </div>
-      <div className="ligne-formulaire">
-        <label>
-          Numéro du sujet
-          <input value={value.subjectNumber} onChange={(e) => onChange('subjectNumber', e.target.value)} />
+      <div className="bloc-vertical">
+        <label className="form-block">
+          Numéro de la résolution/commentaire
+          <input
+            value={value.subjectNumber}
+            onChange={(e) => onChange('subjectNumber', e.target.value)}
+            placeholder="CCU-269"
+          />
         </label>
-        <label>
+
+        <label className="form-block">
           Titre
-          <input value={value.subjectTitle} onChange={(e) => onChange('subjectTitle', e.target.value)} />
+          <input
+            className="input-large"
+            value={value.subjectTitle}
+            onChange={(e) => onChange('subjectTitle', e.target.value)}
+            placeholder="Titre complet du sujet"
+          />
         </label>
-        <label>
-          Libellé court (optionnel)
-          <input value={value.shortLabel ?? ''} onChange={(e) => onChange('shortLabel', e.target.value)} />
+
+        <label className="form-block">
+          Catégories
+          <select multiple value={value.categoriesIds} onChange={handleCategoryChange}>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.label}
+              </option>
+            ))}
+          </select>
+          <span className="form-hint">Maintenir Ctrl/Cmd pour sélectionner plusieurs catégories.</span>
         </label>
-      </div>
-      <label className="bloc">
-        Description longue
-        <textarea
-          rows={5}
-          value={value.longDescription}
-          onChange={(e) => onChange('longDescription', e.target.value)}
-          placeholder="Coller ici le texte complet du PV, considérants, etc."
-        />
-      </label>
-      <CategorySelector
-        categories={categories}
-        selected={value.categoriesIds}
-        onChange={(vals) => onChange('categoriesIds', vals)}
-        onCreate={onCreateCategory}
-      />
-      <div className="ligne-formulaire">
-        <label>
-          Mots-clés (séparés par des virgules)
+
+        <label className="form-block">
+          Mots-clés
           <input
             value={value.keywords.join(', ')}
             onChange={(e) => onChange('keywords', parseList(e.target.value))}
             placeholder="piétons, vitesse, corridor"
           />
         </label>
-        <label>
-          Numéros de résolution (séparés par des virgules)
-          <input
-            value={value.resolutionNumbers.join(', ')}
-            onChange={(e) => onChange('resolutionNumbers', parseList(e.target.value))}
-            placeholder="2025-04, 2025-05"
-          />
-        </label>
+
+        <div className="form-block">
+          <label className="resolution-label">Résolution(s) en lien avec le sujet</label>
+          <div className="resolution-list">
+            {value.resolutionNumbers.map((resolution, idx) => (
+              <div key={`resolution-${idx}`} className="resolution-row">
+                <input
+                  value={resolution}
+                  onChange={(e) => updateResolution(idx, e.target.value)}
+                  placeholder="2025-04"
+                />
+                <button type="button" className="bouton-lien" onClick={() => removeResolutionField(idx)}>
+                  Supprimer
+                </button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="bouton-secondaire" onClick={addResolutionField}>
+            + Ajouter une résolution/commentaire
+          </button>
+        </div>
+
+        <DocumentListEditor
+          label="Extrait de PV"
+          addLabel="+ Ajouter un PDF"
+          items={value.extraitDocuments}
+          onChange={(docs) => onChange('extraitDocuments', docs)}
+        />
+        <DocumentListEditor
+          label="Pièces jointes"
+          addLabel="+ Ajouter un PDF"
+          items={value.attachments}
+          onChange={(docs) => onChange('attachments', docs)}
+        />
       </div>
-      <div className="ligne-formulaire">
-        <label>
-          Latitude (optionnel)
-          <input
-            type="number"
-            value={value.location?.lat ?? ''}
-            onChange={(e) =>
-              onChange('location', {
-                ...value.location,
-                lat: Number(e.target.value),
-                lng: value.location?.lng ?? 0,
-                pinColor: value.location?.pinColor,
-              })
-            }
-          />
-        </label>
-        <label>
-          Longitude (optionnel)
-          <input
-            type="number"
-            value={value.location?.lng ?? ''}
-            onChange={(e) =>
-              onChange('location', {
-                ...value.location,
-                lat: value.location?.lat ?? 0,
-                lng: Number(e.target.value),
-                pinColor: value.location?.pinColor,
-              })
-            }
-          />
-        </label>
-        <label>
-          Couleur du point (optionnel)
-          <input
-            value={value.location?.pinColor ?? ''}
-            onChange={(e) =>
-              onChange('location', {
-                ...value.location,
-                lat: value.location?.lat ?? 0,
-                lng: value.location?.lng ?? 0,
-                pinColor: e.target.value,
-              })
-            }
-            placeholder="#ff0000"
-          />
-        </label>
-      </div>
-      <DocumentListEditor
-        label="Extraits (résolutions)"
-        items={value.extraitDocuments}
-        onChange={(docs) => onChange('extraitDocuments', docs)}
-      />
-      <DocumentListEditor
-        label="Pièces jointes"
-        items={value.attachments}
-        onChange={(docs) => onChange('attachments', docs)}
-      />
       <div className="actions-formulaire">
         <button className="bouton-principal" type="button" onClick={onSubmit}>
           Enregistrer le sujet
@@ -1077,7 +1003,6 @@ function SessionDetail({
   categories,
   onUpsertSubject,
   onDeleteSubject,
-  onCreateCategory,
   onSelectSujet,
   focusedSubjectId,
 }: {
@@ -1086,12 +1011,10 @@ function SessionDetail({
   categories: Category[];
   onUpsertSubject: (subject: Subject | (Omit<Subject, 'id'> & { id?: string })) => void;
   onDeleteSubject: (id: string) => void;
-  onCreateCategory: (categorie: Category) => void;
   onSelectSujet: (sujetId: string) => void;
   focusedSubjectId?: string | null;
 }) {
   const [editing, setEditing] = useState<Subject | null>(null);
-  const [filterCat, setFilterCat] = useState<string>('');
   const [locatingSubject, setLocatingSubject] = useState<Subject | null>(null);
   const [draftLocation, setDraftLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [form, setForm] = useState<Omit<Subject, 'id' | 'sessionId'>>({
@@ -1101,7 +1024,7 @@ function SessionDetail({
     longDescription: '',
     categoriesIds: [],
     keywords: [],
-    resolutionNumbers: [],
+    resolutionNumbers: [''],
     extraitDocuments: [],
     attachments: [],
     location: undefined,
@@ -1129,7 +1052,7 @@ function SessionDetail({
   }, [focusedSubjectId]);
 
   const save = () => {
-    if (!form.subjectNumber || !form.subjectTitle || !form.longDescription) return;
+    if (!form.subjectNumber || !form.subjectTitle) return;
     const payload = editing ? { ...editing, ...form } : { ...form };
     onUpsertSubject({ ...(payload as Subject), sessionId: session.id });
     setEditing(null);
@@ -1140,14 +1063,14 @@ function SessionDetail({
       longDescription: '',
       categoriesIds: [],
       keywords: [],
-      resolutionNumbers: [],
+      resolutionNumbers: [''],
       extraitDocuments: [],
       attachments: [],
       location: undefined,
     });
   };
 
-  const visibles = filterCat ? subjects.filter((s) => s.categoriesIds.includes(filterCat)) : subjects;
+  const visibles = subjects;
   const sessionMarkers: MapMarker[] = useMemo(
     () =>
       visibles
@@ -1198,14 +1121,11 @@ function SessionDetail({
 
   return (
     <div className="session-detail">
-      <div className="session-detail-grid">
+      <div className="session-top">
         <div className="card session-info">
           <div className="entete-seance">
             <div>
-              <p className="surTitre">{session.sessionNumber}</p>
-              <h2>
-                {COMMITTEES[session.committeeId].label} – {session.title || 'Séance'}
-              </h2>
+              <p className="session-number-hero">{session.sessionNumber}</p>
               <p className="date">
                 {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
               </p>
@@ -1218,64 +1138,6 @@ function SessionDetail({
             markers={sessionMarkers}
             onSelectSujet={onSelectSujet}
           />
-          <div className="meta">
-            {session.pvDocuments.length ? (
-              session.pvDocuments.map((doc) => (
-                <a key={doc.label} className="bouton-secondaire" href={doc.url} target="_blank" rel="noreferrer">
-                  Ouvrir le PV · {doc.label}
-                </a>
-              ))
-            ) : (
-              <p className="vide">Aucun PV attaché.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="card filters-card">
-          <div className="entete-formulaire">
-            <div>
-              <p className="surTitre">Filtres</p>
-              <h3>Sujets de la séance</h3>
-            </div>
-            <span className="pastille">Filtrage</span>
-          </div>
-          <label>
-            Filtrer par catégorie
-            <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
-              <option value="">Toutes</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
-
-      <div className="session-columns">
-        <div className="liste-sujets">
-          {visibles.map((subject) => (
-            <div
-              key={subject.id}
-              className={`card ${focusedSubjectId === subject.id ? 'subject-focused' : ''}`}
-              id={`subject-${subject.id}`}
-            >
-              <SubjectDetail subject={subject} categories={categories} />
-              <div className="actions">
-                <button className="bouton-principal" onClick={() => openLocationPicker(subject)}>
-                  {subject.location ? 'Mettre à jour la localisation' : 'Ajouter une localisation'}
-                </button>
-                <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
-                  Modifier
-                </button>
-                <button className="bouton-lien" onClick={() => onDeleteSubject(subject.id)}>
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          ))}
-          {visibles.length === 0 && <p className="vide">Aucun sujet pour cette séance.</p>}
         </div>
 
         <div className="card sujet-form-panel">
@@ -1285,9 +1147,32 @@ function SessionDetail({
             onSubmit={save}
             onCancel={() => setEditing(null)}
             categories={categories}
-            onCreateCategory={onCreateCategory}
           />
         </div>
+      </div>
+
+      <div className="liste-sujets">
+        {visibles.map((subject) => (
+          <div
+            key={subject.id}
+            className={`card ${focusedSubjectId === subject.id ? 'subject-focused' : ''}`}
+            id={`subject-${subject.id}`}
+          >
+            <SubjectDetail subject={subject} categories={categories} />
+            <div className="actions">
+              <button className="bouton-principal" onClick={() => openLocationPicker(subject)}>
+                {subject.location ? 'Mettre à jour la localisation' : 'Ajouter une localisation'}
+              </button>
+              <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
+                Modifier
+              </button>
+              <button className="bouton-lien" onClick={() => onDeleteSubject(subject.id)}>
+                Supprimer
+              </button>
+            </div>
+          </div>
+        ))}
+        {visibles.length === 0 && <p className="vide">Aucun sujet pour cette séance.</p>}
       </div>
 
       {locatingSubject && (
@@ -1539,7 +1424,6 @@ export default function App() {
               categories={state.categories}
               onUpsertSubject={upsertSubject}
               onDeleteSubject={deleteSubject}
-              onCreateCategory={createCategory}
               onSelectSujet={onSelectSujet}
               focusedSubjectId={focusedSubjectId}
             />
