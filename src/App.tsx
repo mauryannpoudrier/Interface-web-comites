@@ -76,6 +76,11 @@ const COMMITTEE_GROUP_COLORS: Record<CommitteeGroup, string> = {
   CCU: '#266B73',
 };
 
+const MAP_PIN_COLORS: Record<CommitteeGroup, string> = {
+  CCU: '#22c55e',
+  CCSRM: '#3b82f6',
+};
+
 const defaultState: AppState = {
   categories: [
     { id: 'mobilite active', label: 'Mobilité active', color: '#0ea5e9' },
@@ -802,12 +807,14 @@ function CommitteePage({
   subjects,
   categories,
   navigate,
+  onSelectSujet,
 }: {
   group: CommitteeGroup;
   sessions: Session[];
   subjects: Subject[];
   categories: Category[];
   navigate: (route: Route) => void;
+  onSelectSujet: (sujetId: string) => void;
 }) {
   const [filterCat, setFilterCat] = useState<string>('');
   const filteredSessions = sessions.filter((s) => s.committeeGroup === group);
@@ -822,8 +829,9 @@ function CommitteePage({
               {
                 lat: subject.location.lat,
                 lng: subject.location.lng,
-                color: subject.location.pinColor ?? COMMITTEE_GROUP_COLORS[group],
+                color: MAP_PIN_COLORS[group],
                 title: subject.shortLabel || subject.subjectTitle,
+                subjectId: subject.id,
               },
             ]
           : [],
@@ -844,6 +852,7 @@ function CommitteePage({
           title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
           accent={COMMITTEE_GROUP_COLORS[group]}
           markers={mapMarkers}
+          onSelectSujet={onSelectSujet}
         />
       </div>
       <div className="card filters-card">
@@ -917,11 +926,13 @@ function SearchPage({
   subjects,
   categories,
   navigate,
+  onSelectSujet,
 }: {
   sessions: Session[];
   subjects: Subject[];
   categories: Category[];
   navigate: (route: Route) => void;
+  onSelectSujet: (sujetId: string) => void;
 }) {
   const [committee, setCommittee] = useState<CommitteeGroup | 'all'>('all');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -975,10 +986,9 @@ function SearchPage({
         .map(({ subject, session }) => ({
           lat: subject.location!.lat,
           lng: subject.location!.lng,
-          color:
-            subject.location?.pinColor ||
-            (session ? COMMITTEE_GROUP_COLORS[session.committeeGroup] : '#f24405'),
+          color: MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'],
           title: subject.shortLabel || subject.subjectTitle,
+          subjectId: subject.id,
         })),
     [results],
   );
@@ -997,6 +1007,7 @@ function SearchPage({
           title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)"
           accent="#f24405"
           markers={resultMarkers}
+          onSelectSujet={onSelectSujet}
         />
       </div>
 
@@ -1076,6 +1087,7 @@ function SessionDetail({
   onUpsertSubject,
   onDeleteSubject,
   onCreateCategory,
+  onSelectSujet,
 }: {
   session: Session;
   subjects: Subject[];
@@ -1083,6 +1095,7 @@ function SessionDetail({
   onUpsertSubject: (subject: Subject | (Omit<Subject, 'id'> & { id?: string })) => void;
   onDeleteSubject: (id: string) => void;
   onCreateCategory: (categorie: Category) => void;
+  onSelectSujet: (sujetId: string) => void;
 }) {
   const [editing, setEditing] = useState<Subject | null>(null);
   const [filterCat, setFilterCat] = useState<string>('');
@@ -1133,8 +1146,9 @@ function SessionDetail({
         .map((subject) => ({
           lat: subject.location!.lat,
           lng: subject.location!.lng,
-          color: subject.location?.pinColor ?? COMMITTEE_GROUP_COLORS[session.committeeGroup],
+          color: MAP_PIN_COLORS[session.committeeGroup],
           title: subject.shortLabel || subject.subjectTitle,
+          subjectId: subject.id,
         })),
     [session.committeeGroup, visibles],
   );
@@ -1159,6 +1173,7 @@ function SessionDetail({
             title="Carte en vue satellite avec seulement les sujets de cette séance"
             accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
             markers={sessionMarkers}
+            onSelectSujet={onSelectSujet}
           />
           <div className="meta">
             {session.pvDocuments.length ? (
@@ -1292,6 +1307,15 @@ export default function App() {
     });
   };
 
+  const onSelectSujet = (sujetId: string) => {
+    const subject = state.subjects.find((s) => s.id === sujetId);
+    if (!subject) return;
+    const session = state.sessions.find((s) => s.id === subject.sessionId);
+    if (session) {
+      navigate({ page: 'session', sessionId: session.id });
+    }
+  };
+
   const currentSession = route.page === 'session' ? state.sessions.find((s) => s.id === route.sessionId) : undefined;
 
   const theme =
@@ -1386,6 +1410,7 @@ export default function App() {
               subjects={state.subjects}
               categories={state.categories}
               navigate={navigate}
+              onSelectSujet={onSelectSujet}
             />
           )}
           {route.page === 'ccsrm' && (
@@ -1395,6 +1420,7 @@ export default function App() {
               subjects={state.subjects}
               categories={state.categories}
               navigate={navigate}
+              onSelectSujet={onSelectSujet}
             />
           )}
           {route.page === 'search' && (
@@ -1403,6 +1429,7 @@ export default function App() {
               subjects={state.subjects}
               categories={state.categories}
               navigate={navigate}
+              onSelectSujet={onSelectSujet}
             />
           )}
           {route.page === 'session' && currentSession && (
@@ -1413,6 +1440,7 @@ export default function App() {
               onUpsertSubject={upsertSubject}
               onDeleteSubject={deleteSubject}
               onCreateCategory={createCategory}
+              onSelectSujet={onSelectSujet}
             />
           )}
           {route.page === 'session' && !currentSession && <p className="vide">Séance introuvable.</p>}

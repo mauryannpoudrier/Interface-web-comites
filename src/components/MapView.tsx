@@ -51,6 +51,7 @@ type Marker = {
   color?: string;
   title: string;
   description?: string;
+  subjectId?: string;
 };
 
 function buildPin(color: string) {
@@ -68,10 +69,12 @@ export function MapView({
   markers,
   accent,
   title,
+  onSelectSujet,
 }: {
   markers: Marker[];
   accent: string;
   title: string;
+  onSelectSujet?: (sujetId: string) => void;
 }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,14 +108,20 @@ export function MapView({
           map.fitBounds(bounds, 32);
         }
 
-        renderedMarkers = markers.map((marker) =>
-          new maps.Marker({
+        renderedMarkers = markers.map((marker) => {
+          const googleMarker = new maps.Marker({
             position: { lat: marker.lat, lng: marker.lng },
             map,
             title: marker.title,
             icon: buildPin(marker.color ?? accent),
-          }),
-        );
+          });
+
+          if (onSelectSujet && marker.subjectId) {
+            googleMarker.addListener('click', () => onSelectSujet(marker.subjectId as string));
+          }
+
+          return googleMarker;
+        });
       })
       .catch((err) => {
         if (!canceled) {
