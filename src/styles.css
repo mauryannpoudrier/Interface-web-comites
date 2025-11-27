@@ -257,6 +257,39 @@ input {
   margin-bottom: 10px;
 }
 
+.calendar-month {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-month-label {
+  background: transparent;
+  border: none;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.calendar-month-label:focus-visible {
+  outline: 2px solid var(--home-accent);
+  border-radius: 6px;
+}
+
+.calendar-month-year-picker {
+  display: flex;
+  gap: 8px;
+  background: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 2;
+}
+
 .calendar-weekdays,
 .calendar-grid {
   display: grid;
