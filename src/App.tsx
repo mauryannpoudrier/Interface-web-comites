@@ -945,6 +945,12 @@ function HomePage({
     }
   }, [editing]);
 
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
   const sortedSessions = useMemo(
     () =>
       [...sessions].sort((a, b) =>
@@ -954,9 +960,19 @@ function HomePage({
     [sessions],
   );
 
+  const futureSessions = useMemo(
+    () =>
+      sortedSessions.filter((session) => {
+        const sessionDate = new Date(session.date);
+        sessionDate.setHours(0, 0, 0, 0);
+        return sessionDate >= today;
+      }),
+    [sortedSessions, today],
+  );
+
   const visibleSessions = useMemo(
-    () => (selectedDate ? sortedSessions.filter((session) => session.date === selectedDate) : sortedSessions),
-    [selectedDate, sortedSessions],
+    () => (selectedDate ? sortedSessions.filter((session) => session.date === selectedDate) : futureSessions),
+    [selectedDate, sortedSessions, futureSessions],
   );
 
   const submit = () => {
