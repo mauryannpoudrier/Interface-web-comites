@@ -1667,13 +1667,19 @@ export default function App() {
 
       <div className="app-main">
         <header className="global-header">
-          <div className="header-logo-row">
+          <div className="header-brand">
             {route.page === 'home' && (
-              <img src={logoVille} alt="Ville de Val-d’Or" className="header-logo" />
+              <img
+                src={logoVille}
+                alt="Ville de Val-d’Or"
+                className="header-logo"
+              />
             )}
             <div className="header-titles">
               <h1>{headerTitle.title}</h1>
-              {headerTitle.subtitle && <p className="header-subtitle">{headerTitle.subtitle}</p>}
+              {headerTitle.subtitle && (
+                <p className="header-subtitle">{headerTitle.subtitle}</p>
+              )}
             </div>
           </div>
         </header>
