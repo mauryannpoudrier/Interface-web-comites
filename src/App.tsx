@@ -1,6 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
+import logoVille from './logo-vvd-couleur-nom-dessous.png';
 
 export type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
 export type CommitteeGroup = 'CCSRM' | 'CCU';
@@ -1664,11 +1665,21 @@ export default function App() {
         </div>
       </aside>
 
-      <div className="app-main">
         <header className="global-header">
-          <div className="header-titles">
-            <h1>{headerTitle.title}</h1>
-            {headerTitle.subtitle && <p className="header-subtitle">{headerTitle.subtitle}</p>}
+          <div className="header-logo-row">
+            {route.page === 'home' && (
+              <img
+                src={logoVille}
+                alt="Ville de Val-d’Or"
+                className="header-logo"
+              />
+            )}
+            <div className="header-titles">
+              <h1>{headerTitle.title}</h1>
+              {headerTitle.subtitle && (
+                <p className="header-subtitle">{headerTitle.subtitle}</p>
+              )}
+            </div>
           </div>
         </header>
 
