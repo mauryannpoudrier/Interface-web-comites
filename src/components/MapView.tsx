@@ -126,14 +126,17 @@ export function MapView({
     return () => {
       canceled = true;
     };
-  }, [accent, center, markers.length]);
+  }, []);
 
   useEffect(() => {
     const maps = mapsRef.current;
     const map = mapInstanceRef.current;
     if (!maps || !map || !isMapReady) return;
 
-    renderedMarkersRef.current.forEach((marker) => marker.setMap(null));
+    renderedMarkersRef.current.forEach((marker) => {
+      maps.event.clearInstanceListeners(marker);
+      marker.setMap(null);
+    });
     renderedMarkersRef.current = markers.map((marker) => {
       const googleMarker = new maps.Marker({
         position: { lat: marker.lat, lng: marker.lng },
