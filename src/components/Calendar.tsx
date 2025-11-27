@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Session, CommitteeId } from '../App';
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -37,8 +37,11 @@ export default function Calendar(props: CalendarProps) {
   const committeeFilter = props.committeeFilter ?? 'all';
 
   const today = new Date();
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const todayYear = today.getFullYear();
+  const [currentYear, setCurrentYear] = useState(todayYear);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
 
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, Session[]>();
@@ -52,6 +55,46 @@ export default function Calendar(props: CalendarProps) {
 
     return map;
   }, [allSessions, committeeFilter]);
+
+  const { minYear, maxYear } = useMemo(() => {
+    if (allSessions.length === 0) return { minYear: 2010, maxYear: 2035 };
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (const session of allSessions) {
+      const date = new Date(session.date);
+      const year = Number.isNaN(date.getTime()) ? todayYear : date.getFullYear();
+      if (year < min) min = year;
+      if (year > max) max = year;
+    }
+
+    return { minYear: min - 1, maxYear: max + 1 };
+  }, [allSessions, todayYear]);
+
+  const yearOptions = useMemo(() => {
+    const years: number[] = [];
+    for (let y = minYear; y <= maxYear; y++) {
+      years.push(y);
+    }
+    return years;
+  }, [minYear, maxYear]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setIsPickerOpen(false);
+      }
+    }
+
+    if (isPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isPickerOpen]);
 
   const monthCellDates = useMemo(() => {
     const firstOfMonth = new Date(currentYear, currentMonth, 1);
@@ -75,23 +118,15 @@ export default function Calendar(props: CalendarProps) {
   }, [currentYear, currentMonth]);
 
   function goToPreviousMonth() {
-    setCurrentMonth((prev) => {
-      if (prev === 0) {
-        setCurrentYear((y) => y - 1);
-        return 11;
-      }
-      return prev - 1;
-    });
+    const date = new Date(currentYear, currentMonth - 1, 1);
+    setCurrentMonth(date.getMonth());
+    setCurrentYear(date.getFullYear());
   }
 
   function goToNextMonth() {
-    setCurrentMonth((prev) => {
-      if (prev === 11) {
-        setCurrentYear((y) => y + 1);
-        return 0;
-      }
-      return prev + 1;
-    });
+    const date = new Date(currentYear, currentMonth + 1, 1);
+    setCurrentMonth(date.getMonth());
+    setCurrentYear(date.getFullYear());
   }
 
   return (
@@ -105,8 +140,44 @@ export default function Calendar(props: CalendarProps) {
           ‹
         </button>
 
-        <div className="calendar-month">
-          {MONTHS[currentMonth]} {currentYear}
+        <div className="calendar-month" ref={pickerRef}>
+          <button
+            type="button"
+            className="calendar-month-label"
+            onClick={() => setIsPickerOpen((v) => !v)}
+          >
+            {MONTHS[currentMonth]} {currentYear}
+          </button>
+
+          {isPickerOpen && (
+            <div className="calendar-month-year-picker">
+              <select
+                value={currentMonth}
+                onChange={(e) => {
+                  setCurrentMonth(Number(e.target.value));
+                }}
+              >
+                {MONTHS.map((month, index) => (
+                  <option key={month} value={index}>
+                    {month.charAt(0) + month.slice(1).toLowerCase()}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={currentYear}
+                onChange={(e) => {
+                  setCurrentYear(Number(e.target.value));
+                }}
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <button
@@ -162,7 +233,10 @@ export default function Calendar(props: CalendarProps) {
               key={index}
               type="button"
               className={baseClass}
-              onClick={() => props.onSelectDate?.(key)}
+              onClick={() => {
+                setIsPickerOpen(false);
+                props.onSelectDate?.(key);
+              }}
             >
               <span className="calendar-day-number">{cellDate.getDate()}</span>
 
