@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
@@ -900,6 +900,7 @@ function CommitteePage({
   categories,
   navigate,
   onSelectSujet,
+  onUpsert,
 }: {
   group: CommitteeGroup;
   sessions: Session[];
@@ -907,8 +908,18 @@ function CommitteePage({
   categories: Category[];
   navigate: (route: Route) => void;
   onSelectSujet: (sujetId: string) => void;
+  onUpsert: (session: Session | Omit<Session, 'committeeGroup'> & { id?: string }) => void;
 }) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showSessionPopup, setShowSessionPopup] = useState(false);
+  const [sessionForm, setSessionForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>({
+    committeeId: group === 'CCU' ? 'CCU' : 'CCSRM',
+    sessionNumber: '',
+    date: '',
+    time: '',
+    pvDocuments: [],
+    agendaDocuments: [],
+  });
   const filteredSessions = useMemo(() => {
     const sessionsForGroup = sessions.filter((s) => s.committeeGroup === group);
     return [...sessionsForGroup].sort((a, b) => {
@@ -923,9 +934,47 @@ function CommitteePage({
     setSelectedCategories((prev) => prev.filter((id) => groupCategories.some((cat) => cat.id === id)));
   }, [groupCategories]);
 
+  useEffect(() => {
+    if (!showSessionPopup) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closePopup();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [closePopup, showSessionPopup]);
+
+  useEffect(() => {
+    resetSessionForm();
+    setShowSessionPopup(false);
+  }, [group, resetSessionForm]);
+
   const toggleCategory = (id: string) => {
     setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((cat) => cat !== id) : [...prev, id]));
   };
+
+  const resetSessionForm = useCallback(() => {
+    setSessionForm({
+      committeeId: group === 'CCU' ? 'CCU' : 'CCSRM',
+      sessionNumber: '',
+      date: '',
+      time: '',
+      pvDocuments: [],
+      agendaDocuments: [],
+    });
+  }, [group]);
+
+  const closePopup = useCallback(() => {
+    setShowSessionPopup(false);
+    resetSessionForm();
+  }, [resetSessionForm]);
+
+  const submitSession = useCallback(() => {
+    if (!sessionForm.sessionNumber || !sessionForm.date) return;
+    onUpsert(sessionForm as Session);
+    closePopup();
+  }, [closePopup, onUpsert, sessionForm]);
 
   const renderDocumentBlock = (
     label: string,
@@ -996,6 +1045,11 @@ function CommitteePage({
               <h2>Catégorie des sujets</h2>
             </div>
           </div>
+          <div className="actions-formulaire">
+            <button className="bouton-principal" type="button" onClick={() => setShowSessionPopup(true)}>
+              Ajouter une séance
+            </button>
+          </div>
           <p className="filter-hint">Sélectionnez une ou plusieurs catégories.</p>
           <div className="tag-grid">
             {groupCategories.map((cat) => (
@@ -1016,6 +1070,18 @@ function CommitteePage({
           </div>
         </div>
       </div>
+      {showSessionPopup && (
+        <div className="session-popup-wrapper">
+          <div className="card session-popup">
+            <SessionForm
+              value={sessionForm}
+              onChange={(field, val) => setSessionForm((prev) => ({ ...prev, [field]: val }))}
+              onSubmit={submitSession}
+              onCancel={closePopup}
+            />
+          </div>
+        </div>
+      )}
       <div className="session-list">
         {filteredSessions.map((session) => {
           const sessionSubjects = subjects.filter((s) => s.sessionId === session.id);
@@ -1702,6 +1768,7 @@ export default function App() {
               categories={state.categories}
               navigate={navigate}
               onSelectSujet={onSelectSujet}
+              onUpsert={upsertSession}
             />
           )}
           {route.page === 'ccsrm' && (
@@ -1712,6 +1779,7 @@ export default function App() {
               categories={state.categories}
               navigate={navigate}
               onSelectSujet={onSelectSujet}
+              onUpsert={upsertSession}
             />
           )}
           {route.page === 'search' && (
