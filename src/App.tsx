@@ -925,6 +925,27 @@ function CommitteePage({
   const toggleCategory = (id: string) => {
     setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((cat) => cat !== id) : [...prev, id]));
   };
+
+  const renderDocumentBlock = (
+    label: string,
+    documents: DocumentLink[],
+    emptyText: string,
+  ) => (
+    <div className="session-doc-block">
+      <p className="session-doc-label">{label}</p>
+      {documents.length ? (
+        <div className="session-doc-links">
+          {documents.map((doc) => (
+            <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
+              {doc.label}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p className="session-doc-empty">{emptyText}</p>
+      )}
+    </div>
+  );
   const mapMarkers: MapMarker[] = useMemo(() => {
     const sessionIds = filteredSessions.map((s) => s.id);
     return subjects
@@ -1000,14 +1021,11 @@ function CommitteePage({
           const visibles = selectedCategories.length
             ? sessionSubjects.filter((s) => s.categoriesIds.some((cat) => selectedCategories.includes(cat)))
             : sessionSubjects;
-          const committeeClass = `session-committee-pill ${
-            COMMITTEES[session.committeeId].group === 'CCU' ? 'ccu' : 'ccsrm'
-          }`;
           if (group === 'CCU') {
             return (
-              <div key={session.id} className="session-card ccu-session-card">
-                <p className="ccu-session-number">{session.sessionNumber}</p>
-                <p className="ccu-session-date">{formatDate(session.date, session.time)}</p>
+              <div key={session.id} className="session-card session-summary-card">
+                <p className="session-summary-number">{session.sessionNumber}</p>
+                <p className="session-summary-date">{formatDate(session.date, session.time)}</p>
                 <div className="session-actions">
                   <button
                     className="bouton-secondaire"
@@ -1016,47 +1034,20 @@ function CommitteePage({
                     Ouvrir la séance
                   </button>
                 </div>
-                <div className="ccu-doc-block">
-                  <p className="ccu-doc-label">Procès-verbal</p>
-                  {session.pvDocuments.length ? (
-                    <div className="ccu-doc-links">
-                      {session.pvDocuments.map((doc) => (
-                        <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
-                          {doc.label}
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="ccu-doc-empty">Aucun PV disponible</p>
-                  )}
-                </div>
-                <div className="ccu-doc-block">
-                  <p className="ccu-doc-label">Ordre du jour</p>
-                  {session.agendaDocuments.length ? (
-                    <div className="ccu-doc-links">
-                      {session.agendaDocuments.map((doc) => (
-                        <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
-                          {doc.label}
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="ccu-doc-empty">Aucun ordre du jour disponible</p>
-                  )}
-                </div>
+                {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun PV disponible')}
+                {renderDocumentBlock(
+                  'Ordre du jour',
+                  session.agendaDocuments,
+                  'Aucun ordre du jour disponible',
+                )}
               </div>
             );
           }
+
           return (
-            <div key={session.id} className="session-card">
-              <div>
-                <div className="session-card-header">
-                  <span className={committeeClass}>{session.committeeId}</span>
-                  <p className="surTitre">{session.sessionNumber}</p>
-                </div>
-                <h3>{COMMITTEES[session.committeeId].label}</h3>
-                <p className="session-date">{formatDate(session.date, session.time)}</p>
-              </div>
+            <div key={session.id} className="session-card session-summary-card">
+              <p className="session-summary-number">{session.sessionNumber}</p>
+              <p className="session-summary-date">{formatDate(session.date, session.time)}</p>
               <div className="session-actions">
                 <button
                   className="bouton-secondaire"
@@ -1064,18 +1055,13 @@ function CommitteePage({
                 >
                   Ouvrir la séance
                 </button>
-                {session.pvDocuments.map((doc) => (
-                  <a key={doc.url} className="bouton-lien" href={doc.url} target="_blank" rel="noreferrer">
-                    {doc.label}
-                  </a>
-                ))}
               </div>
-              <div className="liste-sujets">
-                {visibles.map((subject) => (
-                  <SubjectDetail key={subject.id} subject={subject} categories={categories} />
-                ))}
-                {visibles.length === 0 && <p className="vide">Aucun sujet pour ce filtre.</p>}
-              </div>
+              {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun procès-verbal disponible')}
+              {renderDocumentBlock(
+                'Ordre du jour',
+                session.agendaDocuments,
+                'Aucun ordre du jour disponible',
+              )}
             </div>
           );
         })}
