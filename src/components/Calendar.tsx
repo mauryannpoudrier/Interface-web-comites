@@ -211,10 +211,6 @@ export default function Calendar(props: CalendarProps) {
           const key = makeDateKey(cellDate);
           const sessionsOnDay = sessionsByDate.get(key) ?? [];
           const hasSessions = sessionsOnDay.length > 0;
-          const committees = Array.from(
-            new Set(sessionsOnDay.map((s) => s.committeeId)),
-          );
-
           const isToday =
             cellDate.getFullYear() === today.getFullYear() &&
             cellDate.getMonth() === today.getMonth() &&
@@ -242,12 +238,12 @@ export default function Calendar(props: CalendarProps) {
 
               {hasSessions && (
                 <div className="calendar-day-badges">
-                  {committees.map((c) => (
+                  {sessionsOnDay.map((session) => (
                     <span
-                      key={c}
-                      className={`calendar-badge calendar-badge--${c.toLowerCase()}`}
+                      key={session.id}
+                      className={`calendar-badge calendar-badge--${session.committeeId.toLowerCase()}`}
                     >
-                      {c}
+                      {session.sessionNumber}
                     </span>
                   ))}
                 </div>
