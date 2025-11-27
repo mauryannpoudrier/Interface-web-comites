@@ -930,26 +930,6 @@ function CommitteePage({
   }, [group, sessions]);
   const groupCategories = categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === group);
 
-  useEffect(() => {
-    setSelectedCategories((prev) => prev.filter((id) => groupCategories.some((cat) => cat.id === id)));
-  }, [groupCategories]);
-
-  useEffect(() => {
-    if (!showSessionPopup) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closePopup();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closePopup, showSessionPopup]);
-
-  useEffect(() => {
-    resetSessionForm();
-    setShowSessionPopup(false);
-  }, [group, resetSessionForm]);
-
   const toggleCategory = (id: string) => {
     setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((cat) => cat !== id) : [...prev, id]));
   };
@@ -975,6 +955,26 @@ function CommitteePage({
     onUpsert(sessionForm as Session);
     closePopup();
   }, [closePopup, onUpsert, sessionForm]);
+
+  useEffect(() => {
+    setSelectedCategories((prev) => prev.filter((id) => groupCategories.some((cat) => cat.id === id)));
+  }, [groupCategories]);
+
+  useEffect(() => {
+    if (!showSessionPopup) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closePopup();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [closePopup, showSessionPopup]);
+
+  useEffect(() => {
+    resetSessionForm();
+    setShowSessionPopup(false);
+  }, [group, resetSessionForm]);
 
   const renderDocumentBlock = (
     label: string,
