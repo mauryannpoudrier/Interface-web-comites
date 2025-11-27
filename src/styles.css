@@ -108,12 +108,25 @@ body {
   background: #fff;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 16px 18px;
+  padding: 16px 32px;
   display: flex;
   justify-content: flex-start;
   align-items: center;
   gap: 16px;
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-logo {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .user-chip {
