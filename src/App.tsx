@@ -1178,28 +1178,20 @@ function SubjectDetail({
           style={popoverStyle}
           ref={popoverRef}
         >
-          <div className="card linked-subject-panel">
-            <div className="entete-formulaire">
-              <div>
-                <p className="surTitre">Sujet lié</p>
-                <h3>{previewTarget.label}</h3>
-                <p className="modal-subtitle">{previewTarget.subject.subjectTitle}</p>
-              </div>
-              <button className="bouton-lien" onClick={closePreview} aria-label="Fermer la fenêtre">
-                Fermer
-              </button>
-            </div>
-            <div className="modal-body">
-              <p className="modal-description">{previewTarget.subject.longDescription}</p>
-              <div className="modal-actions">
-                <button className="bouton-secondaire" type="button" onClick={closePreview}>
-                  Rester sur cette page
-                </button>
-                <button className="bouton-principal" type="button" onClick={consultPreview}>
-                  Consulter ce sujet
-                </button>
-              </div>
-            </div>
+          <div className="map-infowindow linked-popover-card">
+            <button
+              className="linked-popover-close"
+              type="button"
+              onClick={closePreview}
+              aria-label="Fermer la fenêtre"
+            >
+              ×
+            </button>
+            <p className="map-pin-label">Sujet {previewTarget.label}</p>
+            <h4 className="linked-popover-title">{previewTarget.subject.subjectTitle}</h4>
+            <button className="map-infowindow-btn" type="button" onClick={consultPreview}>
+              Voir la demande
+            </button>
           </div>
         </div>
       )}
