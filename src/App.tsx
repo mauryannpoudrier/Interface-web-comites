@@ -43,11 +43,13 @@ interface Subject {
   resolutionNumbers: string[];
   extraitDocuments: DocumentLink[];
   attachments: DocumentLink[];
-  location?: {
-    lat: number;
-    lng: number;
-    pinColor?: string;
-  };
+  locations?: Location[];
+}
+
+interface Location {
+  lat: number;
+  lng: number;
+  pinColor?: string;
 }
 
 interface AppState {
@@ -174,7 +176,7 @@ const defaultState: AppState = {
       resolutionNumbers: ['2025-04'],
       extraitDocuments: [{ label: 'Extrait résolution 2025-04', url: 'https://exemple.org/extraits/2025-04.pdf' }],
       attachments: [{ label: 'Carte proposée', url: 'https://exemple.org/cartes/velo.pdf' }],
-      location: { lat: 48.095, lng: -77.782, pinColor: '#0ea5e9' },
+      locations: [{ lat: 48.095, lng: -77.782, pinColor: '#0ea5e9' }],
     },
     {
       id: 'sub-frp',
@@ -340,13 +342,23 @@ function loadInitialState(): AppState {
       ...categorie,
       committeeGroup: categorie.committeeGroup,
     }));
-    const subjects = parsed.subjects.map((subject) => ({
-      ...subject,
-      mainResolutionNumbers: subject.mainResolutionNumbers?.length
-        ? subject.mainResolutionNumbers
-        : [subject.subjectNumber].filter(Boolean),
-      subjectNumber: getPrimaryNumber(subject),
-    }));
+    const subjects = parsed.subjects.map((subject) => {
+      const locations =
+        (subject as Subject & { location?: Location }).locations?.length
+          ? (subject as Subject).locations
+          : (subject as Subject & { location?: Location }).location
+            ? [(subject as Subject & { location?: Location }).location as Location]
+            : [];
+
+      return {
+        ...subject,
+        locations,
+        mainResolutionNumbers: subject.mainResolutionNumbers?.length
+          ? subject.mainResolutionNumbers
+          : [subject.subjectNumber].filter(Boolean),
+        subjectNumber: getPrimaryNumber(subject),
+      } as Subject;
+    });
     return { ...parsed, sessions, categories, subjects };
   } catch (error) {
     console.warn('Impossible de lire les données locales', error);
@@ -1313,17 +1325,15 @@ function CommitteePage({
           : true,
       )
       .flatMap((subject) =>
-        subject.location
-          ? [
-              {
-                lat: subject.location.lat,
-                lng: subject.location.lng,
-                color: MAP_PIN_COLORS[group],
-                title: subject.subjectTitle,
-                label: getPrimaryNumber(subject),
-                subjectId: subject.id,
-              },
-            ]
+        subject.locations?.length
+          ? subject.locations.map((location) => ({
+              lat: location.lat,
+              lng: location.lng,
+              color: location.pinColor ?? MAP_PIN_COLORS[group],
+              title: subject.subjectTitle,
+              label: getPrimaryNumber(subject),
+              subjectId: subject.id,
+            }))
           : [],
       );
   }, [filteredSessions, group, selectedCategories, subjects]);
@@ -1511,16 +1521,18 @@ function SearchPage({
       : categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === committee);
   const resultMarkers: MapMarker[] = useMemo(
     () =>
-      results
-        .filter(({ subject }) => Boolean(subject.location))
-        .map(({ subject, session }) => ({
-          lat: subject.location!.lat,
-          lng: subject.location!.lng,
-          color: MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'],
-          title: subject.subjectTitle,
-          label: getPrimaryNumber(subject),
-          subjectId: subject.id,
-        })),
+      results.flatMap(({ subject, session }) =>
+        subject.locations?.length
+          ? subject.locations.map((location) => ({
+              lat: location.lat,
+              lng: location.lng,
+              color: location.pinColor ?? MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'],
+              title: subject.subjectTitle,
+              label: getPrimaryNumber(subject),
+              subjectId: subject.id,
+            }))
+          : [],
+      ),
     [results],
   );
 
@@ -1658,7 +1670,7 @@ function SessionDetail({
 }) {
   const [editing, setEditing] = useState<Subject | null>(null);
   const [locatingSubject, setLocatingSubject] = useState<Subject | null>(null);
-  const [draftLocation, setDraftLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [draftLocations, setDraftLocations] = useState<Location[]>([]);
   const [form, setForm] = useState<Omit<Subject, 'id' | 'sessionId'>>({
     subjectNumber: '',
     mainResolutionNumbers: [],
@@ -1670,7 +1682,7 @@ function SessionDetail({
     resolutionNumbers: [],
     extraitDocuments: [],
     attachments: [],
-    location: undefined,
+    locations: [],
   });
 
   useEffect(() => {
@@ -1682,15 +1694,16 @@ function SessionDetail({
           ? rest.mainResolutionNumbers
           : [rest.subjectNumber],
         subjectNumber: getPrimaryNumber(rest),
+        locations: rest.locations ?? [],
       });
     }
   }, [editing]);
 
   useEffect(() => {
-    if (locatingSubject?.location) {
-      setDraftLocation({ lat: locatingSubject.location.lat, lng: locatingSubject.location.lng });
+    if (locatingSubject?.locations?.length) {
+      setDraftLocations(locatingSubject.locations);
     } else {
-      setDraftLocation(null);
+      setDraftLocations([]);
     }
   }, [locatingSubject]);
 
@@ -1726,57 +1739,74 @@ function SessionDetail({
       resolutionNumbers: [],
       extraitDocuments: [],
       attachments: [],
-      location: undefined,
+      locations: [],
     });
   };
 
   const visibles = subjects;
   const sessionMarkers: MapMarker[] = useMemo(
     () =>
-      visibles
-        .filter((subject) => Boolean(subject.location))
-        .map((subject) => ({
-          lat: subject.location!.lat,
-          lng: subject.location!.lng,
-          color: MAP_PIN_COLORS[session.committeeGroup],
-          title: subject.subjectTitle,
-          label: getPrimaryNumber(subject),
-          subjectId: subject.id,
-        })),
+      visibles.flatMap((subject) =>
+        subject.locations?.length
+          ? subject.locations.map((location) => ({
+              lat: location.lat,
+              lng: location.lng,
+              color: location.pinColor ?? MAP_PIN_COLORS[session.committeeGroup],
+              title: subject.subjectTitle,
+              label: getPrimaryNumber(subject),
+              subjectId: subject.id,
+            }))
+          : [],
+      ),
     [session.committeeGroup, visibles],
   );
 
-  const draftMarker = draftLocation
-    ? [
-        {
-          lat: draftLocation.lat,
-          lng: draftLocation.lng,
-          color: MAP_PIN_COLORS[session.committeeGroup],
-          title: locatingSubject?.subjectTitle || 'Localisation',
-          label: locatingSubject ? getPrimaryNumber(locatingSubject) : undefined,
-        } satisfies MapMarker,
-      ]
-    : [];
+  const draftMarkers: MapMarker[] = useMemo(
+    () =>
+      draftLocations.map((location) => ({
+        lat: location.lat,
+        lng: location.lng,
+        color: MAP_PIN_COLORS[session.committeeGroup],
+        title: locatingSubject?.subjectTitle || 'Localisation',
+        label: locatingSubject ? getPrimaryNumber(locatingSubject) : undefined,
+      })),
+    [draftLocations, locatingSubject, session.committeeGroup],
+  );
+
+  const sessionMarkersWithoutCurrent = useMemo(
+    () =>
+      locatingSubject
+        ? sessionMarkers.filter((marker) => marker.subjectId !== locatingSubject.id)
+        : sessionMarkers,
+    [locatingSubject, sessionMarkers],
+  );
 
   const openLocationPicker = (subject: Subject) => {
     setLocatingSubject(subject);
-    setDraftLocation(subject.location ? { lat: subject.location.lat, lng: subject.location.lng } : null);
+    setDraftLocations(subject.locations ?? []);
+  };
+
+  const removeDraftLocation = (index: number) => {
+    setDraftLocations((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const saveLocation = () => {
-    if (!locatingSubject || !draftLocation) return;
+    if (!locatingSubject || !draftLocations.length) return;
     const updated: Subject = {
       ...locatingSubject,
-      location: { ...draftLocation, pinColor: MAP_PIN_COLORS[session.committeeGroup] },
+      locations: draftLocations.map((location) => ({
+        ...location,
+        pinColor: MAP_PIN_COLORS[session.committeeGroup],
+      })),
     };
     onUpsertSubject(updated);
     setLocatingSubject(null);
-    setDraftLocation(null);
+    setDraftLocations([]);
   };
 
   const closePicker = () => {
     setLocatingSubject(null);
-    setDraftLocation(null);
+    setDraftLocations([]);
   };
 
   return (
@@ -1829,7 +1859,7 @@ function SessionDetail({
             />
             <div className="actions">
               <button className="bouton-principal" onClick={() => openLocationPicker(subject)}>
-                {subject.location ? 'Mettre à jour la localisation' : 'Ajouter une localisation'}
+                {subject.locations?.length ? 'Mettre à jour les localisations' : 'Ajouter une localisation'}
               </button>
               <button className="bouton-secondaire" onClick={() => setEditing(subject)}>
                 Modifier
@@ -1853,7 +1883,8 @@ function SessionDetail({
                   Sujet {locatingSubject.subjectNumber} · {locatingSubject.subjectTitle}
                 </h3>
                 <p className="map-hint">
-                  Cliquez sur la carte pour positionner la demande. Un repère
+                  Cliquez sur la carte pour ajouter un point (ou plusieurs) pour cette demande.
+                  Un repère
                   {session.committeeGroup === 'CCU' ? ' vert (CCU)' : ' bleu (CCSRM/CCC)'} sera ajouté.
                 </p>
               </div>
@@ -1864,20 +1895,48 @@ function SessionDetail({
             <MapView
               title="Cliquez pour ajouter un point"
               accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
-              markers={[...sessionMarkers, ...draftMarker]}
-              onPickLocation={(coords) => setDraftLocation(coords)}
+              markers={[...sessionMarkersWithoutCurrent, ...draftMarkers]}
+              onPickLocation={(coords) => setDraftLocations((prev) => [...prev, coords])}
             />
             <div className="actions-formulaire">
-              <div className="coordonnees">
-                <span>Lat : {draftLocation?.lat?.toFixed(6) ?? '—'}</span>
-                <span>Lng : {draftLocation?.lng?.toFixed(6) ?? '—'}</span>
+              <div className="points-list">
+                <div className="points-list-header">
+                  <p className="surTitre">Points liés à ce sujet</p>
+                  <p className="map-hint">
+                    {draftLocations.length}
+                    {draftLocations.length <= 1 ? ' point sélectionné' : ' points sélectionnés'}
+                  </p>
+                </div>
+                {draftLocations.length === 0 && (
+                  <p className="map-hint">Aucun point pour le moment. Cliquez sur la carte pour en ajouter.</p>
+                )}
+                <div className="pin-list">
+                  {draftLocations.map((coord, index) => (
+                    <div key={`${coord.lat}-${coord.lng}-${index}`} className="pin-item">
+                      <div>
+                        <p className="pin-label">Point {index + 1}</p>
+                        <div className="coordonnees">
+                          <span>Lat : {coord.lat.toFixed(6)}</span>
+                          <span>Lng : {coord.lng.toFixed(6)}</span>
+                        </div>
+                      </div>
+                      <button className="bouton-lien" onClick={() => removeDraftLocation(index)}>
+                        Supprimer ce point
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="modal-actions">
                 <button className="bouton-secondaire" onClick={closePicker}>
                   Annuler
                 </button>
-                <button className="bouton-principal" disabled={!draftLocation} onClick={saveLocation}>
-                  Enregistrer la localisation
+                <button
+                  className="bouton-principal"
+                  disabled={!draftLocations.length}
+                  onClick={saveLocation}
+                >
+                  Enregistrer les localisations
                 </button>
               </div>
             </div>

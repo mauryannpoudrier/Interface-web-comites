@@ -756,6 +756,40 @@ input {
   color: #4b5563;
 }
 
+.points-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.points-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  background: #f9fafb;
+}
+
+.pin-label {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
 .modal-actions {
   display: flex;
   gap: 10px;
