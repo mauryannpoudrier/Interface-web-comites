@@ -509,18 +509,22 @@ function SessionForm({
   onChange,
   onSubmit,
   onCancel,
+  heading = 'Ajouter une séance',
+  submitLabel = 'Enregistrer la séance',
 }: {
   value: Omit<Session, 'id' | 'committeeGroup' | 'title'>;
   onChange: (field: keyof Omit<Session, 'id' | 'committeeGroup' | 'title'>, val: string | DocumentLink[]) => void;
   onSubmit: () => void;
   onCancel?: () => void;
+  heading?: string;
+  submitLabel?: string;
 }) {
   return (
     <div className="session-form">
       <div className="form-row">
         <div className="form-field">
           <p className="surTitre">Séances</p>
-          <h2>Ajouter une séance</h2>
+          <h2>{heading}</h2>
         </div>
         <div className="form-field" style={{ textAlign: 'right' }}>
           <Badge committeeId={value.committeeId} />
@@ -565,7 +569,7 @@ function SessionForm({
       />
       <div className="actions-formulaire">
         <button className="bouton-principal" type="button" onClick={onSubmit}>
-          Enregistrer la séance
+          {submitLabel}
         </button>
         {onCancel && (
           <button className="bouton-secondaire" type="button" onClick={onCancel}>
@@ -928,20 +932,27 @@ function HomePage({
   navigate: (route: Route) => void;
 }) {
   const [editing, setEditing] = useState<Session | null>(null);
-  const [form, setForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>({
+  const emptySessionForm: Omit<Session, 'id' | 'committeeGroup' | 'title'> = {
     committeeId: 'CCU',
     sessionNumber: '',
     date: '',
     time: '',
     pvDocuments: [],
     agendaDocuments: [],
-  });
+  };
+  const createEmptySessionForm = () => ({ ...emptySessionForm, pvDocuments: [], agendaDocuments: [] });
+  const [form, setForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>(() =>
+    createEmptySessionForm(),
+  );
+  const [editForm, setEditForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>(() =>
+    createEmptySessionForm(),
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (editing) {
       const { id, committeeGroup, title: _title, ...rest } = editing;
-      setForm({ ...rest, agendaDocuments: rest.agendaDocuments ?? [] });
+      setEditForm({ ...rest, agendaDocuments: rest.agendaDocuments ?? [] });
     }
   }, [editing]);
 
@@ -977,10 +988,17 @@ function HomePage({
 
   const submit = () => {
     if (!form.sessionNumber || !form.date) return;
-    const payload = editing ? { ...editing, ...form } : { ...form };
-    onUpsert(payload as Session);
+    const payload = { ...form } as Session;
+    onUpsert(payload);
+    setForm(createEmptySessionForm());
+  };
+
+  const submitEdit = () => {
+    if (!editing || !editForm.sessionNumber || !editForm.date) return;
+    const payload = { ...editing, ...editForm } as Session;
+    onUpsert(payload);
     setEditing(null);
-    setForm({ committeeId: 'CCU', sessionNumber: '', date: '', time: '', pvDocuments: [], agendaDocuments: [] });
+    setEditForm(createEmptySessionForm());
   };
 
   return (
@@ -1007,7 +1025,7 @@ function HomePage({
             value={form}
             onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
             onSubmit={submit}
-            onCancel={() => setEditing(null)}
+            onCancel={() => setForm(createEmptySessionForm())}
           />
         </div>
       </div>
@@ -1036,6 +1054,23 @@ function HomePage({
           {visibleSessions.length === 0 && <p className="vide">Aucune séance ce jour-là.</p>}
         </div>
       </div>
+      {editing && (
+        <div className="session-popup-wrapper home-edit-popup">
+          <div className="card session-popup">
+            <SessionForm
+              value={editForm}
+              onChange={(field, val) => setEditForm((prev) => ({ ...prev, [field]: val }))}
+              onSubmit={submitEdit}
+              onCancel={() => {
+                setEditing(null);
+                setEditForm(createEmptySessionForm());
+              }}
+              heading={`Modifier ${editing.sessionNumber}`}
+              submitLabel="Enregistrer les modifications"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1430,20 +1465,42 @@ function SearchPage({
           <span className="pastille">{results.length} sujets</span>
         </div>
         <div className="result-list">
-          {results.map(({ subject, session }) => (
-            <button
-              key={subject.id}
-              className={`result-card ${session?.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm'}`}
-              onClick={() => session && navigate({ page: 'session', sessionId: session.id })}
-            >
-              <div className="result-meta">
-                <span className="surTitre">{session?.sessionNumber}</span>
-                <Badge committeeId={session?.committeeId ?? 'CCU'} />
-              </div>
-              <h3>{subject.subjectTitle}</h3>
-              <p className="result-infos">{session ? formatDate(session.date, session.time) : ''}</p>
-            </button>
-          ))}
+          {results.map(({ subject, session }) => {
+            const categoryLabels = subject.categoriesIds
+              .map((id) => categories.find((c) => c.id === id)?.label)
+              .filter((label): label is string => Boolean(label));
+            const primaryNumber = getPrimaryNumber(subject);
+            const committeeClass = session?.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm';
+
+            return (
+              <button
+                key={subject.id}
+                className={`result-card ${committeeClass}`}
+                onClick={() => session && navigate({ page: 'session', sessionId: session.id })}
+              >
+                <div className="result-meta">
+                  <span className="result-number">{primaryNumber}</span>
+                  <span
+                    className={`committee-dot ${committeeClass}`}
+                    aria-label={`Comité ${committeeClass === 'ccu' ? 'CCU' : 'CCSRM/CCC'}`}
+                  />
+                </div>
+                <h3 className="result-title">{subject.subjectTitle}</h3>
+                <p className="result-infos">{session ? formatDate(session.date, session.time) : ''}</p>
+                <div className="result-categories">
+                  {categoryLabels.length ? (
+                    categoryLabels.map((label) => (
+                      <span key={label} className="etiquette">
+                        {label}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="etiquette neutre">Non classé</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
           {results.length === 0 && <p className="vide">Aucun sujet trouvé.</p>}
         </div>
       </div>
