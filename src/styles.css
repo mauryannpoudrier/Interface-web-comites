@@ -949,6 +949,25 @@ input {
   font-weight: 600;
 }
 
+.chip-link {
+  border: none;
+  background: #eef2ff;
+  color: #1d1a16;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip-link:hover {
+  background: #e0e7ff;
+}
+
+.chip-link:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
 .subject-empty,
 .subject-empty-inline {
   margin: 0;
