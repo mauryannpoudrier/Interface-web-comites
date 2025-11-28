@@ -392,6 +392,22 @@ function getPrimaryNumber(subject: Pick<Subject, 'subjectNumber' | 'mainResoluti
   return subject.mainResolutionNumbers?.find((num) => num.trim()) ?? subject.subjectNumber;
 }
 
+function formatSubjectBadge(primaryNumber: string) {
+  const normalized = primaryNumber.trim();
+  const commentRegex = /^com\.?\s*/i;
+  const resolutionRegex = /^(rés\.|res\.)\s*/i;
+
+  if (commentRegex.test(normalized)) {
+    return { typeLabel: 'Commentaire', numberLabel: normalized.replace(commentRegex, '').trim() };
+  }
+
+  if (resolutionRegex.test(normalized)) {
+    return { typeLabel: 'Résolution', numberLabel: normalized.replace(resolutionRegex, '').trim() };
+  }
+
+  return { typeLabel: 'Sujet', numberLabel: normalized };
+}
+
 function Badge({ committeeId }: { committeeId: CommitteeId }) {
   const meta = COMMITTEES[committeeId];
   return (
@@ -1470,6 +1486,10 @@ function SearchPage({
               .map((id) => categories.find((c) => c.id === id)?.label)
               .filter((label): label is string => Boolean(label));
             const primaryNumber = getPrimaryNumber(subject);
+            const { typeLabel, numberLabel } = formatSubjectBadge(primaryNumber);
+            const badgeText = session
+              ? `${session.sessionNumber} ${typeLabel} ${numberLabel}`
+              : `${typeLabel} ${numberLabel}`;
             const committeeClass = session?.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm';
 
             return (
@@ -1478,13 +1498,9 @@ function SearchPage({
                 className={`result-card ${committeeClass}`}
                 onClick={() => session && navigate({ page: 'session', sessionId: session.id })}
               >
-                <div className="result-meta">
-                  <span className="result-number">{primaryNumber}</span>
-                  <span
-                    className={`committee-dot ${committeeClass}`}
-                    aria-label={`Comité ${committeeClass === 'ccu' ? 'CCU' : 'CCSRM/CCC'}`}
-                  />
-                </div>
+                <span className={`session-committee-badge result-committee-badge ${committeeClass}`}>
+                  {badgeText}
+                </span>
                 <h3 className="result-title">{subject.subjectTitle}</h3>
                 <p className="result-infos">{session ? formatDate(session.date, session.time) : ''}</p>
                 <div className="result-categories">

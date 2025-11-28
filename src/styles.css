@@ -777,6 +777,12 @@ input {
   gap: 4px;
 }
 
+.result-committee-badge {
+  align-self: flex-start;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
 .result-card.ccu {
   border-color: var(--ccu-accent);
 }
