@@ -1088,11 +1088,8 @@ function SubjectDetail({
       </div>
 
       {previewTarget && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={closePreview}>
-          <div
-            className="card modal-panel linked-subject-modal"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="linked-subject-overlay" role="dialog" aria-modal="true">
+          <div className="card linked-subject-panel">
             <div className="entete-formulaire">
               <div>
                 <p className="surTitre">Sujet lié</p>

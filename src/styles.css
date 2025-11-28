@@ -750,15 +750,41 @@ input {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
 
-.linked-subject-modal {
-  max-width: 640px;
-}
-
-.linked-subject-modal .modal-body {
+.linked-subject-panel .modal-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 4px;
+}
+
+.linked-subject-overlay {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: flex-end;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.linked-subject-panel {
+  pointer-events: auto;
+  width: min(520px, 44vw);
+  background: rgba(255, 252, 246, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+@media (max-width: 900px) {
+  .linked-subject-overlay {
+    right: 12px;
+    left: 12px;
+  }
+
+  .linked-subject-panel {
+    width: 100%;
+  }
 }
 
 .modal-subtitle {
