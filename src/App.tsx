@@ -1,4 +1,13 @@
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
@@ -966,19 +975,78 @@ function SubjectDetail({
     [allSubjects, subject],
   );
   const keywords = subject.keywords.filter((kw) => kw.trim());
-  const [previewTarget, setPreviewTarget] = useState<{ subject: Subject; label: string } | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<
+    | {
+        subject: Subject;
+        label: string;
+        triggerRect: DOMRect;
+        triggerElement: HTMLElement;
+      }
+    | null
+  >(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   const openLinkedPreview = useCallback(
-    (targetId: string, label: string) => {
+    (event: ReactMouseEvent<HTMLButtonElement>, targetId: string, label: string) => {
       const target = allSubjects.find((item) => item.id === targetId);
       if (target) {
-        setPreviewTarget({ subject: target, label });
+        const triggerRect = event.currentTarget.getBoundingClientRect();
+        setPreviewTarget({
+          subject: target,
+          label,
+          triggerRect,
+          triggerElement: event.currentTarget,
+        });
       } else {
         onNavigateToSubject?.(targetId);
       }
     },
     [allSubjects, onNavigateToSubject],
   );
+
+  useEffect(() => {
+    if (!previewTarget) return undefined;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const targetNode = event.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(targetNode) &&
+        !previewTarget.triggerElement.contains(targetNode)
+      ) {
+        setPreviewTarget(null);
+      }
+    };
+
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewTarget(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keyup', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keyup', handleEscape);
+    };
+  }, [previewTarget]);
+
+  const popoverStyle = useMemo(() => {
+    if (!previewTarget) return undefined;
+
+    const centerX = previewTarget.triggerRect.left + previewTarget.triggerRect.width / 2;
+    const constrainedLeft = Math.min(
+      window.innerWidth - 16,
+      Math.max(16, centerX + window.scrollX),
+    );
+
+    return {
+      top: previewTarget.triggerRect.top + window.scrollY,
+      left: constrainedLeft,
+    } satisfies CSSProperties;
+  }, [previewTarget]);
 
   const closePreview = useCallback(() => setPreviewTarget(null), []);
 
@@ -1068,7 +1136,7 @@ function SubjectDetail({
                     type="button"
                     key={`${resolution.label}-${resolution.targetId}`}
                     className="etiquette clair chip-link"
-                    onClick={() => openLinkedPreview(resolution.targetId, resolution.label)}
+                    onClick={(event) => openLinkedPreview(event, resolution.targetId, resolution.label)}
                   >
                     {resolution.label}
                   </button>
@@ -1088,7 +1156,13 @@ function SubjectDetail({
       </div>
 
       {previewTarget && (
-        <div className="linked-subject-overlay" role="dialog" aria-modal="true">
+        <div
+          className="linked-subject-popover"
+          role="dialog"
+          aria-modal="false"
+          style={popoverStyle}
+          ref={popoverRef}
+        >
           <div className="card linked-subject-panel">
             <div className="entete-formulaire">
               <div>
