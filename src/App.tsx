@@ -394,8 +394,8 @@ function getPrimaryNumber(subject: Pick<Subject, 'subjectNumber' | 'mainResoluti
 
 function formatSubjectBadge(primaryNumber: string) {
   const normalized = primaryNumber.trim();
-  const commentRegex = /^com\.?\s*/i;
-  const resolutionRegex = /^(rés\.|res\.)\s*/i;
+  const commentRegex = /^(commentaire|com\.?)\s*/i;
+  const resolutionRegex = /^(résolution|resolution|rés\.|res\.)\s*/i;
 
   if (commentRegex.test(normalized)) {
     return { typeLabel: 'Commentaire', numberLabel: normalized.replace(commentRegex, '').trim() };

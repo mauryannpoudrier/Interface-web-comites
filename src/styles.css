@@ -514,6 +514,13 @@ input {
   color: var(--text-muted);
 }
 
+.search-page .filters-card .categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .map-placeholder {
   position: relative;
   border-radius: var(--radius);
