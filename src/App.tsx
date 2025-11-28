@@ -989,23 +989,37 @@ function SubjectDetail({
   const openLinkedPreview = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>, targetId: string, label: string) => {
       const target = allSubjects.find((item) => item.id === targetId);
-      if (target) {
-        const triggerRect = event.currentTarget.getBoundingClientRect();
-        setPreviewTarget({
-          subject: target,
-          label,
-          triggerRect,
-          triggerElement: event.currentTarget,
-        });
-      } else {
+      if (!target) {
         onNavigateToSubject?.(targetId);
+        return;
       }
+
+      const triggerRect = event.currentTarget.getBoundingClientRect();
+      const hasDimensions = Number.isFinite(triggerRect.width) && Number.isFinite(triggerRect.height);
+
+      if (!hasDimensions) {
+        onNavigateToSubject?.(targetId);
+        return;
+      }
+
+      setPreviewTarget({
+        subject: target,
+        label,
+        triggerRect,
+        triggerElement: event.currentTarget,
+      });
     },
     [allSubjects, onNavigateToSubject],
   );
 
   useEffect(() => {
     if (!previewTarget) return undefined;
+
+    const fallbackTimer = window.setTimeout(() => {
+      if (!popoverRef.current) {
+        onNavigateToSubject?.(previewTarget.subject.id);
+      }
+    }, 100);
 
     const handleClickOutside = (event: MouseEvent) => {
       const targetNode = event.target as Node;
@@ -1028,10 +1042,11 @@ function SubjectDetail({
     document.addEventListener('keyup', handleEscape);
 
     return () => {
+      window.clearTimeout(fallbackTimer);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keyup', handleEscape);
     };
-  }, [previewTarget]);
+  }, [onNavigateToSubject, previewTarget]);
 
   const popoverStyle = useMemo(() => {
     if (!previewTarget) return undefined;
