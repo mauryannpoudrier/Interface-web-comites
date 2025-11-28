@@ -15,6 +15,16 @@ import logoVille from './logo-vvd-couleur-nom-dessous.png';
 export type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
 export type CommitteeGroup = 'CCSRM' | 'CCU';
 
+type TaskStatus = 'waiting' | 'in_progress' | 'done';
+
+interface Task {
+  id: string;
+  title: string;
+  assignee: string;
+  status: TaskStatus;
+  note: string;
+}
+
 export interface DocumentLink {
   label: string;
   url: string;
@@ -65,6 +75,7 @@ interface AppState {
   sessions: Session[];
   subjects: Subject[];
   categories: Category[];
+  tasks: Task[];
 }
 
 interface LinkedReference {
@@ -76,6 +87,7 @@ type Route =
   | { page: 'home' }
   | { page: 'ccu' }
   | { page: 'ccsrm' }
+  | { page: 'tasks' }
   | { page: 'search' }
   | { page: 'session'; sessionId: string };
 
@@ -333,6 +345,29 @@ const defaultState: AppState = {
       attachments: [],
     },
   ],
+  tasks: [
+    {
+      id: 'task-accueil',
+      title: 'Préparer ordre du jour CCU',
+      assignee: 'Service d’urbanisme',
+      status: 'in_progress',
+      note: 'Valider les points prioritaires avec le comité.',
+    },
+    {
+      id: 'task-invitations',
+      title: 'Envoyer invitation aux membres',
+      assignee: 'Coordination',
+      status: 'waiting',
+      note: 'Ajouter les documents en pièce jointe.',
+    },
+    {
+      id: 'task-suivi',
+      title: 'Mettre à jour le suivi des résolutions',
+      assignee: 'Équipe projets',
+      status: 'done',
+      note: 'Partager le tableau avant la prochaine séance.',
+    },
+  ],
 };
 
 function loadInitialState(): AppState {
@@ -368,7 +403,16 @@ function loadInitialState(): AppState {
         subjectNumber: getPrimaryNumber(subject),
       } as Subject;
     });
-    return { ...parsed, sessions, categories, subjects };
+    const tasks: Task[] = parsed.tasks?.length
+      ? parsed.tasks.map((task) => ({
+          ...task,
+          status:
+            task.status === 'done' || task.status === 'in_progress' || task.status === 'waiting'
+              ? task.status
+              : 'waiting',
+        }))
+      : defaultState.tasks;
+    return { ...parsed, sessions, categories, subjects, tasks };
   } catch (error) {
     console.warn('Impossible de lire les données locales', error);
     return defaultState;
@@ -392,6 +436,7 @@ function parseHash(): Route {
   if (!parts.length) return { page: 'home' };
   if (parts[0] === 'ccu') return { page: 'ccu' };
   if (parts[0] === 'ccsrm') return { page: 'ccsrm' };
+  if (parts[0] === 'tasks') return { page: 'tasks' };
   if (parts[0] === 'search') return { page: 'search' };
   if (parts[0] === 'sessions' && parts[1]) return { page: 'session', sessionId: parts[1] };
   return { page: 'home' };
@@ -405,6 +450,8 @@ function buildHash(route: Route) {
       return '#/ccu';
     case 'ccsrm':
       return '#/ccsrm';
+    case 'tasks':
+      return '#/tasks';
     case 'search':
       return '#/search';
     case 'session':
@@ -1797,6 +1844,115 @@ function SearchPage({
   );
 }
 
+const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string; icon: string; color: string }[] = [
+  { value: 'waiting', label: 'En attente', icon: '⏸️', color: '#2563eb' },
+  { value: 'in_progress', label: 'En progression', icon: '⏳', color: '#ea580c' },
+  { value: 'done', label: 'Terminé', icon: '✅', color: '#16a34a' },
+];
+
+function TasksPage({
+  tasks,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+}: {
+  tasks: Task[];
+  onAddTask: () => void;
+  onUpdateTask: (id: string, field: keyof Task, value: string | TaskStatus) => void;
+  onDeleteTask: (id: string) => void;
+}) {
+  return (
+    <div className="tasks-page">
+      <div className="card tasks-card">
+        <div className="entete-formulaire">
+          <div>
+            <p className="surTitre">Organisation</p>
+            <h2>Attribution des tâches</h2>
+            <p className="description">
+              Suivez les actions liées aux comités, assignez des responsables et mettez à jour l’avancement.
+            </p>
+          </div>
+          <button className="bouton-principal" onClick={onAddTask}>
+            Ajouter une tâche
+          </button>
+        </div>
+
+        <div className="task-table" role="table" aria-label="Tableau des tâches">
+          <div className="task-row task-header" role="row">
+            <div role="columnheader">Tâche</div>
+            <div role="columnheader">Assignée à</div>
+            <div role="columnheader">Statut</div>
+            <div role="columnheader">Note supplémentaire</div>
+            <div role="columnheader" className="task-actions-col" aria-label="Actions" />
+          </div>
+
+          {tasks.length === 0 && (
+            <div className="task-row empty-task" role="row">
+              <div className="empty-message" role="cell">
+                Aucune tâche pour le moment. Ajoutez une première action pour démarrer le suivi.
+              </div>
+            </div>
+          )}
+
+          {tasks.map((task) => {
+            const statusDefinition = TASK_STATUS_OPTIONS.find((opt) => opt.value === task.status);
+            return (
+              <div key={task.id} className="task-row" role="row">
+                <div role="cell">
+                  <input
+                    className="task-input"
+                    value={task.title}
+                    onChange={(e) => onUpdateTask(task.id, 'title', e.target.value)}
+                    placeholder="Décrire la tâche"
+                  />
+                </div>
+                <div role="cell">
+                  <input
+                    className="task-input"
+                    value={task.assignee}
+                    onChange={(e) => onUpdateTask(task.id, 'assignee', e.target.value)}
+                    placeholder="Ajouter un responsable"
+                  />
+                </div>
+                <div role="cell" className="task-status-cell">
+                  <span className="status-chip" style={{ color: statusDefinition?.color }}>
+                    {statusDefinition?.icon} {statusDefinition?.label}
+                  </span>
+                  <select
+                    className="task-select"
+                    value={task.status}
+                    onChange={(e) => onUpdateTask(task.id, 'status', e.target.value as TaskStatus)}
+                    aria-label={`Statut pour ${task.title || 'cette tâche'}`}
+                  >
+                    {TASK_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {`${option.icon} ${option.label}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div role="cell">
+                  <input
+                    className="task-input"
+                    value={task.note}
+                    onChange={(e) => onUpdateTask(task.id, 'note', e.target.value)}
+                    placeholder="Ajouter un rappel ou une précision"
+                  />
+                </div>
+                <div role="cell" className="task-actions-col">
+                  <button className="bouton-lien" onClick={() => onDeleteTask(task.id)}>
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SessionDetail({
   session,
   subjects,
@@ -2250,6 +2406,28 @@ export default function App() {
     }));
   };
 
+  const addTask = () => {
+    const newTask: Task = {
+      id: `task-${Date.now()}`,
+      title: '',
+      assignee: '',
+      status: 'waiting',
+      note: '',
+    };
+    setState((prev) => ({ ...prev, tasks: [...prev.tasks, newTask] }));
+  };
+
+  const updateTask = (id: string, field: keyof Task, value: string | TaskStatus) => {
+    setState((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((task) => (task.id === id ? { ...task, [field]: value } : task)),
+    }));
+  };
+
+  const deleteTask = (id: string) => {
+    setState((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.id !== id) }));
+  };
+
   const onSelectSujet = (sujetId: string) => {
     const subject = state.subjects.find((s) => s.id === sujetId);
     if (!subject) return;
@@ -2286,6 +2464,9 @@ export default function App() {
         subtitle: '(Anciennement CCC – Comité consultatif de circulation)',
       };
     }
+    if (route.page === 'tasks') {
+      return { title: 'Attribution des tâches', subtitle: 'Suivi des actions et responsables' };
+    }
     if (route.page === 'search') {
       return { title: 'Recherche', subtitle: 'Filtrer les sujets CCU et CCSRM/CCC' };
     }
@@ -2319,6 +2500,10 @@ export default function App() {
           <button className={route.page === 'ccsrm' ? 'active' : ''} onClick={() => navigate({ page: 'ccsrm' })}>
             <span>🚦</span>
             CCSRM/CCC
+          </button>
+          <button className={route.page === 'tasks' ? 'active' : ''} onClick={() => navigate({ page: 'tasks' })}>
+            <span>📋</span>
+            Attribution des tâches
           </button>
         </nav>
         <div className="sidebar-bottom">
@@ -2378,6 +2563,14 @@ export default function App() {
               navigate={navigate}
               onSelectSujet={onSelectSujet}
               onUpsert={upsertSession}
+            />
+          )}
+          {route.page === 'tasks' && (
+            <TasksPage
+              tasks={state.tasks}
+              onAddTask={addTask}
+              onUpdateTask={updateTask}
+              onDeleteTask={deleteTask}
             />
           )}
           {route.page === 'search' && (
