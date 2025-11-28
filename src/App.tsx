@@ -966,104 +966,158 @@ function SubjectDetail({
     [allSubjects, subject],
   );
   const keywords = subject.keywords.filter((kw) => kw.trim());
+  const [previewTarget, setPreviewTarget] = useState<{ subject: Subject; label: string } | null>(null);
+
+  const openLinkedPreview = useCallback(
+    (targetId: string, label: string) => {
+      const target = allSubjects.find((item) => item.id === targetId);
+      if (target) {
+        setPreviewTarget({ subject: target, label });
+      } else {
+        onNavigateToSubject?.(targetId);
+      }
+    },
+    [allSubjects, onNavigateToSubject],
+  );
+
+  const closePreview = useCallback(() => setPreviewTarget(null), []);
+
+  const consultPreview = useCallback(() => {
+    if (!previewTarget) return;
+    setPreviewTarget(null);
+    onNavigateToSubject?.(previewTarget.subject.id);
+  }, [onNavigateToSubject, previewTarget]);
 
   return (
-    <div className="card sujet-detail">
-      <div className="subject-header">
-        <p className="subject-number">{primaryNumber}</p>
-        {secondaryNumbers.length > 0 && (
-          <p className="subject-number secondary">{secondaryNumbers.join(', ')}</p>
-        )}
-        <p className="subject-title">{subject.subjectTitle}</p>
-      </div>
-
-      <div className="subject-body">
-        <p className="subject-section">Catégories</p>
-        <div className="subject-badges">
-          {categoryLabels.length ? (
-            categoryLabels.map((label) => (
-              <span key={label} className="etiquette">
-                {label}
-              </span>
-            ))
-          ) : (
-            <span className="etiquette neutre">Non classé</span>
+    <>
+      <div className="card sujet-detail">
+        <div className="subject-header">
+          <p className="subject-number">{primaryNumber}</p>
+          {secondaryNumbers.length > 0 && (
+            <p className="subject-number secondary">{secondaryNumbers.join(', ')}</p>
           )}
+          <p className="subject-title">{subject.subjectTitle}</p>
         </div>
 
-        <p className="subject-section">Extrait du procès-verbal</p>
-        {subject.extraitDocuments.length ? (
-          <ul className="subject-links">
-            {subject.extraitDocuments.map((doc) => (
-              <li key={doc.label}>
-                <a href={doc.url} target="_blank" rel="noreferrer">
-                  {doc.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="subject-empty">Aucun extrait disponible.</p>
-        )}
-
-        <p className="subject-section">Pièces jointes</p>
-        {subject.attachments.length ? (
-          <ul className="subject-links">
-            {subject.attachments.map((doc) => (
-              <li key={doc.label}>
-                <a href={doc.url} target="_blank" rel="noreferrer">
-                  {doc.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="subject-empty">Aucune pièce jointe.</p>
-        )}
-
-        <p className="subject-meta-line">
-          <span className="subject-section-inline">Mots-clés :</span>
-          <span className="subject-chip-row">
-            {keywords.length ? (
-              keywords.map((keyword) => (
-                <span key={keyword} className="etiquette clair">
-                  {keyword}
+        <div className="subject-body">
+          <p className="subject-section">Catégories</p>
+          <div className="subject-badges">
+            {categoryLabels.length ? (
+              categoryLabels.map((label) => (
+                <span key={label} className="etiquette">
+                  {label}
                 </span>
               ))
             ) : (
-              <span className="subject-empty-inline">Aucun mot-clé</span>
+              <span className="etiquette neutre">Non classé</span>
             )}
-          </span>
-        </p>
+          </div>
 
-        <p className="subject-section">Résolution(s)/commentaire(s) en lien avec le sujet</p>
-        {linkedResolutions.length ? (
-          <div className="subject-chip-row">
-            {linkedResolutions.map((resolution) => {
-              if (resolution.targetId) {
-                return (
+          <p className="subject-section">Extrait du procès-verbal</p>
+          {subject.extraitDocuments.length ? (
+            <ul className="subject-links">
+              {subject.extraitDocuments.map((doc) => (
+                <li key={doc.label}>
+                  <a href={doc.url} target="_blank" rel="noreferrer">
+                    {doc.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="subject-empty">Aucun extrait disponible.</p>
+          )}
+
+          <p className="subject-section">Pièces jointes</p>
+          {subject.attachments.length ? (
+            <ul className="subject-links">
+              {subject.attachments.map((doc) => (
+                <li key={doc.label}>
+                  <a href={doc.url} target="_blank" rel="noreferrer">
+                    {doc.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="subject-empty">Aucune pièce jointe.</p>
+          )}
+
+          <p className="subject-meta-line">
+            <span className="subject-section-inline">Mots-clés :</span>
+            <span className="subject-chip-row">
+              {keywords.length ? (
+                keywords.map((keyword) => (
+                  <span key={keyword} className="etiquette clair">
+                    {keyword}
+                  </span>
+                ))
+              ) : (
+                <span className="subject-empty-inline">Aucun mot-clé</span>
+              )}
+            </span>
+          </p>
+
+          <p className="subject-section">Résolution(s)/commentaire(s) en lien avec le sujet</p>
+          {linkedResolutions.length ? (
+            <div className="subject-chip-row">
+              {linkedResolutions.map((resolution) => {
+                if (resolution.targetId) {
+                  return (
                   <button
                     type="button"
                     key={`${resolution.label}-${resolution.targetId}`}
                     className="etiquette clair chip-link"
-                    onClick={() => onNavigateToSubject?.(resolution.targetId)}
+                    onClick={() => openLinkedPreview(resolution.targetId, resolution.label)}
                   >
                     {resolution.label}
                   </button>
+                  );
+                }
+                return (
+                  <span key={resolution.label} className="etiquette clair">
+                    {resolution.label}
+                  </span>
                 );
-              }
-              return (
-                <span key={resolution.label} className="etiquette clair">
-                  {resolution.label}
-                </span>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="subject-empty">Aucun lien enregistré.</p>
-        )}
+              })}
+            </div>
+          ) : (
+            <p className="subject-empty">Aucun lien enregistré.</p>
+          )}
+        </div>
       </div>
-    </div>
+
+      {previewTarget && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={closePreview}>
+          <div
+            className="card modal-panel linked-subject-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="entete-formulaire">
+              <div>
+                <p className="surTitre">Sujet lié</p>
+                <h3>{previewTarget.label}</h3>
+                <p className="modal-subtitle">{previewTarget.subject.subjectTitle}</p>
+              </div>
+              <button className="bouton-lien" onClick={closePreview} aria-label="Fermer la fenêtre">
+                Fermer
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-description">{previewTarget.subject.longDescription}</p>
+              <div className="modal-actions">
+                <button className="bouton-secondaire" type="button" onClick={closePreview}>
+                  Rester sur cette page
+                </button>
+                <button className="bouton-principal" type="button" onClick={consultPreview}>
+                  Consulter ce sujet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
