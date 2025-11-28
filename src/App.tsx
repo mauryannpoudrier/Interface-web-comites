@@ -56,6 +56,11 @@ interface AppState {
   categories: Category[];
 }
 
+interface LinkedReference {
+  label: string;
+  targetId?: string;
+}
+
 type Route =
   | { page: 'home' }
   | { page: 'ccu' }
@@ -390,6 +395,65 @@ function buildHash(route: Route) {
 
 function getPrimaryNumber(subject: Pick<Subject, 'subjectNumber' | 'mainResolutionNumbers'>) {
   return subject.mainResolutionNumbers?.find((num) => num.trim()) ?? subject.subjectNumber;
+}
+
+function normalizeIdentifier(raw: string) {
+  const base = raw
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/^(résolution|resolution|res\.?|rés\.?|commentaire|comment\.?|com\.?)/i, '')
+    .replace(/^[\s:–—-]+/, '')
+    .trim()
+    .toLowerCase();
+  return base || raw.trim().toLowerCase();
+}
+
+function getNormalizedIdentifiers(subject: Subject) {
+  const identifiers = subject.mainResolutionNumbers?.length
+    ? subject.mainResolutionNumbers
+    : [subject.subjectNumber];
+  return identifiers.map((id) => normalizeIdentifier(id));
+}
+
+function findSubjectByReference(reference: string, subjects: Subject[], currentId?: string) {
+  const normalized = normalizeIdentifier(reference);
+  return subjects.find((candidate) => {
+    if (candidate.id === currentId) return false;
+    return getNormalizedIdentifiers(candidate).some((id) => id === normalized);
+  });
+}
+
+function buildLinkedReferences(subject: Subject, subjects: Subject[]): LinkedReference[] {
+  const identifiers = getNormalizedIdentifiers(subject);
+  const references: LinkedReference[] = [];
+  const seen = new Set<string>();
+
+  const addReference = (label: string, targetId: string | undefined, normalizedKey: string) => {
+    const key = `${normalizedKey}-${targetId ?? 'none'}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    references.push({ label: label.trim(), targetId });
+  };
+
+  subject.resolutionNumbers
+    .filter((ref) => ref.trim())
+    .forEach((reference) => {
+      const normalized = normalizeIdentifier(reference);
+      const target = findSubjectByReference(reference, subjects, subject.id);
+      addReference(reference, target?.id, normalized);
+    });
+
+  subjects.forEach((candidate) => {
+    if (candidate.id === subject.id) return;
+    const hasBacklink = (candidate.resolutionNumbers ?? []).some((ref) =>
+      identifiers.includes(normalizeIdentifier(ref)),
+    );
+    if (!hasBacklink) return;
+    const primaryNumber = getPrimaryNumber(candidate);
+    addReference(primaryNumber, candidate.id, normalizeIdentifier(primaryNumber));
+  });
+
+  return references;
 }
 
 function formatSubjectBadge(primaryNumber: string) {
@@ -855,7 +919,17 @@ function SessionCard({
   );
 }
 
-function SubjectDetail({ subject, categories }: { subject: Subject; categories: Category[] }) {
+function SubjectDetail({
+  subject,
+  categories,
+  allSubjects,
+  onNavigateToSubject,
+}: {
+  subject: Subject;
+  categories: Category[];
+  allSubjects: Subject[];
+  onNavigateToSubject?: (subjectId: string) => void;
+}) {
   const categoryLabels = subject.categoriesIds
     .map((id) => categories.find((c) => c.id === id)?.label)
     .filter((label): label is string => Boolean(label))
@@ -863,7 +937,10 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
   const mainNumbers = (subject.mainResolutionNumbers ?? [subject.subjectNumber]).filter(Boolean);
   const primaryNumber = mainNumbers[0] ?? '—';
   const secondaryNumbers = mainNumbers.slice(1).filter((num) => num.trim());
-  const linkedResolutions = subject.resolutionNumbers.filter((num) => num.trim());
+  const linkedResolutions = useMemo(
+    () => buildLinkedReferences(subject, allSubjects),
+    [allSubjects, subject],
+  );
   const keywords = subject.keywords.filter((kw) => kw.trim());
 
   return (
@@ -938,11 +1015,25 @@ function SubjectDetail({ subject, categories }: { subject: Subject; categories: 
         <p className="subject-section">Résolution(s)/commentaire(s) en lien avec le sujet</p>
         {linkedResolutions.length ? (
           <div className="subject-chip-row">
-            {linkedResolutions.map((resolution) => (
-              <span key={resolution} className="etiquette clair">
-                {resolution}
-              </span>
-            ))}
+            {linkedResolutions.map((resolution) => {
+              if (resolution.targetId) {
+                return (
+                  <button
+                    type="button"
+                    key={`${resolution.label}-${resolution.targetId}`}
+                    className="etiquette clair chip-link"
+                    onClick={() => onNavigateToSubject?.(resolution.targetId)}
+                  >
+                    {resolution.label}
+                  </button>
+                );
+              }
+              return (
+                <span key={resolution.label} className="etiquette clair">
+                  {resolution.label}
+                </span>
+              );
+            })}
           </div>
         ) : (
           <p className="subject-empty">Aucun lien enregistré.</p>
@@ -1545,6 +1636,7 @@ function SearchPage({
 function SessionDetail({
   session,
   subjects,
+  allSubjects,
   categories,
   onUpsertSubject,
   onDeleteSubject,
@@ -1555,6 +1647,7 @@ function SessionDetail({
 }: {
   session: Session;
   subjects: Subject[];
+  allSubjects: Subject[];
   categories: Category[];
   onUpsertSubject: (subject: Subject | (Omit<Subject, 'id'> & { id?: string })) => void;
   onDeleteSubject: (id: string) => void;
@@ -1574,7 +1667,7 @@ function SessionDetail({
     longDescription: '',
     categoriesIds: [],
     keywords: [],
-    resolutionNumbers: [''],
+    resolutionNumbers: [],
     extraitDocuments: [],
     attachments: [],
     location: undefined,
@@ -1630,7 +1723,7 @@ function SessionDetail({
       longDescription: '',
       categoriesIds: [],
       keywords: [],
-      resolutionNumbers: [''],
+      resolutionNumbers: [],
       extraitDocuments: [],
       attachments: [],
       location: undefined,
@@ -1728,7 +1821,12 @@ function SessionDetail({
             className={`card ${focusedSubjectId === subject.id ? 'subject-focused' : ''}`}
             id={`subject-${subject.id}`}
           >
-            <SubjectDetail subject={subject} categories={categories} />
+            <SubjectDetail
+              subject={subject}
+              categories={categories}
+              allSubjects={allSubjects}
+              onNavigateToSubject={onSelectSujet}
+            />
             <div className="actions">
               <button className="bouton-principal" onClick={() => openLocationPicker(subject)}>
                 {subject.location ? 'Mettre à jour la localisation' : 'Ajouter une localisation'}
@@ -2033,6 +2131,7 @@ export default function App() {
             <SessionDetail
               session={currentSession}
               subjects={state.subjects.filter((s) => s.sessionId === currentSession.id)}
+              allSubjects={state.subjects}
               categories={state.categories}
               onUpsertSubject={upsertSubject}
               onDeleteSubject={deleteSubject}
