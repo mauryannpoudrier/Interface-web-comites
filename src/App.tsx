@@ -435,6 +435,18 @@ function findSubjectByReference(reference: string, subjects: Subject[], currentI
   });
 }
 
+function addReferenceIfMissing(subject: Subject, reference: string) {
+  const trimmed = reference.trim();
+  if (!trimmed) return subject;
+  const normalized = normalizeIdentifier(trimmed);
+  if (!normalized) return subject;
+  const exists = subject.resolutionNumbers.some(
+    (ref) => normalizeIdentifier(ref) === normalized,
+  );
+  if (exists) return subject;
+  return { ...subject, resolutionNumbers: [...subject.resolutionNumbers, trimmed] };
+}
+
 function buildLinkedReferences(subject: Subject, subjects: Subject[]): LinkedReference[] {
   const identifiers = getNormalizedIdentifiers(subject);
   const references: LinkedReference[] = [];
@@ -2002,12 +2014,63 @@ export default function App() {
 
   const upsertSubject = (payload: Subject | (Omit<Subject, 'id'> & { id?: string })) => {
     const id = 'id' in payload && payload.id ? payload.id : `subject-${Date.now()}`;
-    const subject: Subject = { ...payload, id } as Subject;
+    const subject: Subject = { ...payload, id, resolutionNumbers: payload.resolutionNumbers ?? [] } as Subject;
     setState((prev) => {
-      const exists = prev.subjects.some((s) => s.id === id);
-      const subjects = exists
-        ? prev.subjects.map((s) => (s.id === id ? subject : s))
-        : [...prev.subjects, subject];
+      const previousVersion = prev.subjects.find((s) => s.id === id);
+      const previousReferences = new Set(
+        (previousVersion?.resolutionNumbers ?? [])
+          .map((ref) => normalizeIdentifier(ref))
+          .filter(Boolean),
+      );
+
+      const subjectsById = new Map<string, Subject>(prev.subjects.map((s) => [s.id, s]));
+      subjectsById.set(id, subject);
+
+      const basePrimaryNumber = getPrimaryNumber(subject);
+      const normalizedPrimary = normalizeIdentifier(basePrimaryNumber);
+      const referenceEntries = subject.resolutionNumbers
+        .map((ref) => ({ ref, normalized: normalizeIdentifier(ref) }))
+        .filter((entry) => Boolean(entry.normalized));
+      const newReferences = referenceEntries.filter(
+        (entry, index, arr) =>
+          arr.findIndex((candidate) => candidate.normalized === entry.normalized) === index &&
+          !previousReferences.has(entry.normalized as string),
+      );
+
+      newReferences.forEach(({ ref }) => {
+        const target = findSubjectByReference(ref, Array.from(subjectsById.values()), id);
+        if (!target) return;
+
+        const targetCurrent = subjectsById.get(target.id) ?? target;
+        subjectsById.set(target.id, addReferenceIfMissing(targetCurrent, basePrimaryNumber));
+
+        const targetLinks = (targetCurrent.resolutionNumbers ?? [])
+          .map((link) => ({ link, normalized: normalizeIdentifier(link) }))
+          .filter(
+            (entry, index, arr) =>
+              entry.normalized &&
+              entry.normalized !== normalizedPrimary &&
+              arr.findIndex((candidate) => candidate.normalized === entry.normalized) === index,
+          );
+
+        targetLinks.forEach(({ link }) => {
+          const linkedSubject = findSubjectByReference(link, Array.from(subjectsById.values()), id);
+          const baseSubject = subjectsById.get(id)!;
+          const labelForBase = linkedSubject ? getPrimaryNumber(linkedSubject) : link;
+          subjectsById.set(id, addReferenceIfMissing(baseSubject, labelForBase));
+
+          if (linkedSubject) {
+            const currentLinked = subjectsById.get(linkedSubject.id) ?? linkedSubject;
+            subjectsById.set(linkedSubject.id, addReferenceIfMissing(currentLinked, basePrimaryNumber));
+          }
+        });
+      });
+
+      const subjects = prev.subjects.map((s) => subjectsById.get(s.id) ?? s);
+      if (!previousVersion) {
+        subjects.push(subjectsById.get(id)!);
+      }
+
       return { ...prev, subjects };
     });
   };
