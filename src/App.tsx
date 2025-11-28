@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
@@ -629,11 +629,6 @@ function SubjectForm({
   const [newCategory, setNewCategory] = useState('');
   const [categoryEditMode, setCategoryEditMode] = useState(false);
 
-  const handleCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const selectedOptions = Array.from(event.target.selectedOptions).map((opt) => opt.value);
-    onChange('categoriesIds', selectedOptions);
-  };
-
   const syncPrimaryNumber = (numbers: string[]) => {
     const primary = numbers.find((num) => num.trim()) ?? '';
     onChange('mainResolutionNumbers', numbers);
@@ -669,6 +664,22 @@ function SubjectForm({
     setCategoryEditMode((prev) => !prev);
   };
 
+  const toggleCategorySelection = (id: string) => {
+    onChange(
+      'categoriesIds',
+      value.categoriesIds.includes(id)
+        ? value.categoriesIds.filter((catId) => catId !== id)
+        : [...value.categoriesIds, id],
+    );
+  };
+
+  const handleCategoryKeyDown = (event: KeyboardEvent<HTMLSpanElement>, id: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleCategorySelection(id);
+    }
+  };
+
   return (
     <div className="card sujet-form">
       <div className="entete-formulaire">
@@ -696,18 +707,6 @@ function SubjectForm({
           />
         </label>
 
-        <label className="form-block">
-          Catégories
-          <select multiple value={value.categoriesIds} onChange={handleCategoryChange}>
-            {sortedCategories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
-          <span className="form-hint">Maintenir Ctrl/Cmd pour sélectionner plusieurs catégories.</span>
-        </label>
-
         <div className="form-block category-manager">
           <div className="category-manager-header">
             <label className="resolution-label">Gérer les catégories ({committeeGroup})</label>
@@ -725,12 +724,31 @@ function SubjectForm({
               + Ajouter une catégorie
             </button>
           </div>
+          <p className="form-hint">
+            Cliquer sur une pastille pour sélectionner ou désélectionner une catégorie.
+          </p>
           <div className="tag-pill-list">
             {sortedCategories.map((cat) => (
-              <span key={cat.id} className="etiquette gestion-categorie">
+              <span
+                key={cat.id}
+                role="button"
+                tabIndex={0}
+                className={`etiquette gestion-categorie${
+                  value.categoriesIds.includes(cat.id) ? ' gestion-categorie-selected' : ''
+                }`}
+                onClick={() => toggleCategorySelection(cat.id)}
+                onKeyDown={(event) => handleCategoryKeyDown(event, cat.id)}
+              >
                 {cat.label}
                 {categoryEditMode && (
-                  <button type="button" aria-label={`Supprimer ${cat.label}`} onClick={() => removeCategory(cat.id)}>
+                  <button
+                    type="button"
+                    aria-label={`Supprimer ${cat.label}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      removeCategory(cat.id);
+                    }}
+                  >
                     ✕
                   </button>
                 )}
