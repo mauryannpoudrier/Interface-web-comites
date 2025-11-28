@@ -750,6 +750,29 @@ input {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
 
+.linked-subject-modal {
+  max-width: 640px;
+}
+
+.linked-subject-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.modal-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.modal-description {
+  margin: 0;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
 .coordonnees {
   display: flex;
   gap: 12px;
