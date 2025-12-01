@@ -1272,4 +1272,34 @@ input {
   color: var(--text-muted);
   font-weight: 600;
 }
+
+.back-to-top {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--home-accent);
+  color: #fff;
+  font-size: 24px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  z-index: 10;
+  opacity: 0.92;
+}
+
+.back-to-top:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25);
+  opacity: 1;
+}
+
+.back-to-top:active {
+  transform: translateY(0);
+}
 *** End of File
