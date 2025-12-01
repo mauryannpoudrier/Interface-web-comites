@@ -72,6 +72,9 @@ interface AppState {
 interface LinkedReference {
   label: string;
   targetId?: string;
+  subjectTitle?: string;
+  typeLabel: string;
+  numberLabel: string;
 }
 
 type Route =
@@ -499,11 +502,23 @@ function buildLinkedReferences(subject: Subject, subjects: Subject[]): LinkedRef
   const references: LinkedReference[] = [];
   const seen = new Set<string>();
 
-  const addReference = (label: string, targetId: string | undefined, normalizedKey: string) => {
-    const key = `${normalizedKey}-${targetId ?? 'none'}`;
+  const addReference = (
+    label: string,
+    target: Subject | undefined,
+    normalizedKey: string,
+  ) => {
+    const key = `${normalizedKey}-${target?.id ?? 'none'}`;
     if (seen.has(key)) return;
     seen.add(key);
-    references.push({ label: label.trim(), targetId });
+    const primaryNumber = target ? getPrimaryNumber(target) : label;
+    const badge = formatSubjectBadge(primaryNumber);
+    references.push({
+      label: label.trim(),
+      targetId: target?.id,
+      subjectTitle: target?.subjectTitle,
+      typeLabel: badge.typeLabel,
+      numberLabel: badge.numberLabel,
+    });
   };
 
   subject.resolutionNumbers
@@ -511,7 +526,7 @@ function buildLinkedReferences(subject: Subject, subjects: Subject[]): LinkedRef
     .forEach((reference) => {
       const normalized = normalizeIdentifier(reference);
       const target = findSubjectByReference(reference, subjects, subject.id);
-      addReference(reference, target?.id, normalized);
+      addReference(reference, target, normalized);
     });
 
   subjects.forEach((candidate) => {
@@ -521,7 +536,7 @@ function buildLinkedReferences(subject: Subject, subjects: Subject[]): LinkedRef
     );
     if (!hasBacklink) return;
     const primaryNumber = getPrimaryNumber(candidate);
-    addReference(primaryNumber, candidate.id, normalizeIdentifier(primaryNumber));
+    addReference(primaryNumber, candidate, normalizeIdentifier(primaryNumber));
   });
 
   return references;
@@ -1103,21 +1118,41 @@ function SubjectDetail({
           {linkedResolutions.length ? (
             <div className="subject-chip-row">
               {linkedResolutions.map((resolution) => {
+                const tooltipLabel = `${resolution.typeLabel} ${resolution.numberLabel}`.trim();
+                const tooltipTitle = tooltipLabel || resolution.label;
+                const tooltipDescription = resolution.subjectTitle;
+
+                const tooltipContent = (
+                  <span className="chip-tooltip" role="tooltip">
+                    <span className="chip-tooltip-title">{tooltipTitle}</span>
+                    {tooltipDescription && (
+                      <span className="chip-tooltip-description">{tooltipDescription}</span>
+                    )}
+                  </span>
+                );
+
                 if (resolution.targetId) {
                   return (
-                    <a
+                    <span
                       key={`${resolution.label}-${resolution.targetId}`}
-                      className="etiquette clair chip-link"
-                      href={`#subject-${resolution.targetId}`}
-                      onClick={() => navigateToLinkedSubject(resolution.targetId)}
+                      className="chip-tooltip-wrapper"
                     >
-                      {resolution.label}
-                    </a>
+                      <button
+                        type="button"
+                        className="etiquette clair chip-link"
+                        onClick={() => navigateToLinkedSubject(resolution.targetId)}
+                        aria-label={`Ouvrir ${tooltipTitle}`}
+                      >
+                        {resolution.label}
+                      </button>
+                      {tooltipContent}
+                    </span>
                   );
                 }
                 return (
-                  <span key={resolution.label} className="etiquette clair">
+                  <span key={resolution.label} className="chip-tooltip-wrapper etiquette clair">
                     {resolution.label}
+                    {tooltipContent}
                   </span>
                 );
               })}
