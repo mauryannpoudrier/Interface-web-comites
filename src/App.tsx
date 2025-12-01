@@ -1,4 +1,11 @@
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type SyntheticEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
@@ -1044,6 +1051,24 @@ function SubjectDetail({
     [onNavigateToSubject],
   );
 
+  const handleTooltipInteraction = useCallback((event: SyntheticEvent<HTMLElement>) => {
+    const wrapper = event.currentTarget;
+    const tooltip = wrapper.querySelector<HTMLElement>('.chip-tooltip');
+
+    if (!tooltip) {
+      return;
+    }
+
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const tooltipHeight = tooltip.offsetHeight;
+    const verticalGap = 14; // space for margin and hover translation
+    const spaceAbove = wrapperRect.top;
+    const spaceBelow = window.innerHeight - wrapperRect.bottom;
+    const shouldPlaceAbove = spaceAbove >= tooltipHeight + verticalGap || spaceAbove >= spaceBelow;
+
+    tooltip.dataset.position = shouldPlaceAbove ? 'above' : 'below';
+  }, []);
+
   return (
     <>
       <div className="card sujet-detail">
@@ -1136,6 +1161,8 @@ function SubjectDetail({
                     <span
                       key={`${resolution.label}-${resolution.targetId}`}
                       className="chip-tooltip-wrapper"
+                      onMouseEnter={handleTooltipInteraction}
+                      onFocus={handleTooltipInteraction}
                     >
                       <button
                         type="button"
@@ -1150,7 +1177,12 @@ function SubjectDetail({
                   );
                 }
                 return (
-                  <span key={resolution.label} className="chip-tooltip-wrapper etiquette clair">
+                  <span
+                    key={resolution.label}
+                    className="chip-tooltip-wrapper etiquette clair"
+                    onMouseEnter={handleTooltipInteraction}
+                    onFocus={handleTooltipInteraction}
+                  >
                     {resolution.label}
                     {tooltipContent}
                   </span>

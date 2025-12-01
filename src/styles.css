@@ -1010,6 +1010,7 @@ input {
 
 .chip-tooltip {
   position: absolute;
+  top: auto;
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translate(-50%, 0);
@@ -1029,6 +1030,11 @@ input {
   z-index: 4;
 }
 
+.chip-tooltip[data-position='below'] {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
 .chip-tooltip-title {
   font-weight: 700;
   display: block;
@@ -1044,6 +1050,11 @@ input {
 .chip-tooltip-wrapper:focus-within .chip-tooltip {
   opacity: 1;
   transform: translate(-50%, -6px);
+}
+
+.chip-tooltip-wrapper:hover .chip-tooltip[data-position='below'],
+.chip-tooltip-wrapper:focus-within .chip-tooltip[data-position='below'] {
+  transform: translate(-50%, 6px);
 }
 
 .subject-empty,
