@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Calendar from './components/Calendar';
 import MapView, { type MapMarker } from './components/MapView';
+import BackToTopButton from './components/BackToTopButton';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
 
 export type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
@@ -632,28 +633,28 @@ function EditableTagList({
     setDraft('');
   };
 
-  return (
-    <div className="form-block">
-      <label className="resolution-label">{label}</label>
-      <div className="tag-list">
-        {items.map((item, idx) => (
-          <div className="tag-row" key={`${item}-${idx}`}>
-            <input value={item} onChange={(e) => updateItem(idx, e.target.value)} placeholder={placeholder} />
-            <button type="button" className="bouton-lien" onClick={() => removeItem(idx)}>
-              Supprimer
-            </button>
-          </div>
-        ))}
+    return (
+      <div className="form-block">
+        <label className="resolution-label">{label}</label>
+        <div className="tag-list">
+          {items.map((item, idx) => (
+            <div className="tag-row" key={`${item}-${idx}`}>
+              <input value={item} onChange={(e) => updateItem(idx, e.target.value)} placeholder={placeholder} />
+              <button type="button" className="bouton-lien" onClick={() => removeItem(idx)}>
+                Supprimer
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="tag-add-row">
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />
+          <button type="button" className="bouton-secondaire" onClick={addItem}>
+            {addLabel}
+          </button>
+        </div>
       </div>
-      <div className="tag-add-row">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />
-        <button type="button" className="bouton-secondaire" onClick={addItem}>
-          {addLabel}
-        </button>
-      </div>
-    </div>
-  );
-}
+    );
+  }
 
 function SessionForm({
   value,
@@ -2354,13 +2355,14 @@ export default function App() {
   })();
 
   return (
-    <div className={`app-frame theme-${theme}`}>
-      <aside className="sidebar">
-        {route.page === 'home' && (
-          <div className="user-chip sidebar-user">
-            <div className="avatar" aria-hidden />
-            <div>
-              <p className="surTitre">Utilisateur</p>
+    <>
+      <div className={`app-frame theme-${theme}`}>
+        <aside className="sidebar">
+          {route.page === 'home' && (
+            <div className="user-chip sidebar-user">
+              <div className="avatar" aria-hidden />
+              <div>
+                <p className="surTitre">Utilisateur</p>
               <strong>Nom, Prénom</strong>
             </div>
           </div>
@@ -2477,5 +2479,7 @@ export default function App() {
         </main>
       </div>
     </div>
+    <BackToTopButton />
+  </>
   );
 }
