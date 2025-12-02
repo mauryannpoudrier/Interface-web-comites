@@ -649,7 +649,7 @@ input {
 
 .committee-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: flex-start;
 }
