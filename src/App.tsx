@@ -3,7 +3,6 @@ import {
   type SyntheticEvent,
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
 import Calendar from './components/Calendar';
@@ -1459,46 +1458,10 @@ function CommitteePage({
       )}
     </div>
   );
-  const mapMarkers: MapMarker[] = useMemo(() => {
-    const sessionIds = filteredSessions.map((s) => s.id);
-    return subjects
-      .filter((subject) => sessionIds.includes(subject.sessionId))
-      .filter((subject) =>
-        selectedCategories.length
-          ? subject.categoriesIds.some((cat) => selectedCategories.includes(cat))
-          : true,
-      )
-      .flatMap((subject) =>
-        subject.locations?.length
-          ? subject.locations.map((location) => ({
-              lat: location.lat,
-              lng: location.lng,
-              color: location.pinColor ?? MAP_PIN_COLORS[group],
-              title: subject.subjectTitle,
-              label: getPrimaryNumber(subject),
-              subjectId: subject.id,
-            }))
-          : [],
-      );
-  }, [filteredSessions, group, selectedCategories, subjects]);
 
   return (
     <div className="committee-page">
       <div className="committee-grid">
-        <div className="card map-card">
-          <div className="entete-formulaire">
-            <div>
-              <p className="surTitre">Carte globale</p>
-              <h2>Sujets {group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}</h2>
-            </div>
-          </div>
-          <MapView
-            title={`Carte en vue satellite avec tous les sujets ${group === 'CCU' ? 'CCU' : 'CCSRM/CCC'}`}
-            accent={COMMITTEE_GROUP_COLORS[group]}
-            markers={mapMarkers}
-            onSelectSujet={onSelectSujet}
-          />
-        </div>
         <div className="card filters-card">
           <div className="entete-formulaire">
             <div>
