@@ -700,9 +700,6 @@ function SessionForm({
           <p className="surTitre">Séances</p>
           <h2>{heading}</h2>
         </div>
-        <div className="form-field" style={{ textAlign: 'right' }}>
-          <Badge committeeId={value.committeeId} />
-        </div>
       </div>
       <div className="form-row">
         <label className="form-field">
