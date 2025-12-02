@@ -1360,29 +1360,30 @@ function CommitteePage({
   group,
   sessions,
   subjects,
-  categories,
   navigate,
-  onSelectSujet,
   onUpsert,
 }: {
   group: CommitteeGroup;
   sessions: Session[];
   subjects: Subject[];
-  categories: Category[];
   navigate: (route: Route) => void;
-  onSelectSujet: (sujetId: string) => void;
   onUpsert: (session: Session | Omit<Session, 'committeeGroup'> & { id?: string }) => void;
 }) {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [showSessionPopup, setShowSessionPopup] = useState(false);
-  const [sessionForm, setSessionForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>({
-    committeeId: group === 'CCU' ? 'CCU' : 'CCSRM',
-    sessionNumber: '',
-    date: '',
-    time: '',
-    pvDocuments: [],
-    agendaDocuments: [],
-  });
+  const createEmptySessionForm = useCallback(
+    () => ({
+      committeeId: group === 'CCU' ? 'CCU' : 'CCSRM',
+      sessionNumber: '',
+      date: '',
+      time: '',
+      pvDocuments: [],
+      agendaDocuments: [],
+    }),
+    [group],
+  );
+
+  const [sessionForm, setSessionForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>(
+    () => createEmptySessionForm(),
+  );
   const filteredSessions = useMemo(() => {
     const sessionsForGroup = sessions.filter((s) => s.committeeGroup === group);
     return [...sessionsForGroup].sort((a, b) => {
@@ -1391,53 +1392,16 @@ function CommitteePage({
       return bValue - aValue;
     });
   }, [group, sessions]);
-  const groupCategories = categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === group);
-
-  const toggleCategory = (id: string) => {
-    setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((cat) => cat !== id) : [...prev, id]));
-  };
-
-  const resetSessionForm = useCallback(() => {
-    setSessionForm({
-      committeeId: group === 'CCU' ? 'CCU' : 'CCSRM',
-      sessionNumber: '',
-      date: '',
-      time: '',
-      pvDocuments: [],
-      agendaDocuments: [],
-    });
-  }, [group]);
-
-  const closePopup = useCallback(() => {
-    setShowSessionPopup(false);
-    resetSessionForm();
-  }, [resetSessionForm]);
 
   const submitSession = useCallback(() => {
     if (!sessionForm.sessionNumber || !sessionForm.date) return;
     onUpsert(sessionForm as Session);
-    closePopup();
-  }, [closePopup, onUpsert, sessionForm]);
+    setSessionForm(createEmptySessionForm());
+  }, [createEmptySessionForm, onUpsert, sessionForm]);
 
   useEffect(() => {
-    setSelectedCategories((prev) => prev.filter((id) => groupCategories.some((cat) => cat.id === id)));
-  }, [groupCategories]);
-
-  useEffect(() => {
-    if (!showSessionPopup) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closePopup();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closePopup, showSessionPopup]);
-
-  useEffect(() => {
-    resetSessionForm();
-    setShowSessionPopup(false);
-  }, [group, resetSessionForm]);
+    setSessionForm(createEmptySessionForm());
+  }, [createEmptySessionForm]);
 
   const renderDocumentBlock = (
     label: string,
@@ -1463,56 +1427,19 @@ function CommitteePage({
   return (
     <div className="committee-page">
       <div className="committee-grid">
-        <div className="card filters-card">
-          <div className="entete-formulaire">
-            <div>
-              <p className="surTitre">Filtres</p>
-              <h2>Catégorie des sujets</h2>
-            </div>
-          </div>
-          <div className="actions-formulaire">
-            <button className="bouton-principal" type="button" onClick={() => setShowSessionPopup(true)}>
-              Ajouter une séance
-            </button>
-          </div>
-          <p className="filter-hint">Sélectionnez une ou plusieurs catégories.</p>
-          <div className="tag-grid">
-            {groupCategories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                className={`tag ${selectedCategories.includes(cat.id) ? 'actif' : ''}`}
-                onClick={() => toggleCategory(cat.id)}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-          <div className="actions-formulaire align-end">
-            <button className="bouton-lien" type="button" onClick={() => setSelectedCategories([])}>
-              Tout afficher
-            </button>
-          </div>
+        <div className="card add-session-card">
+          <SessionForm
+            value={sessionForm}
+            onChange={(field, val) => setSessionForm((prev) => ({ ...prev, [field]: val }))}
+            onSubmit={submitSession}
+            onCancel={() => setSessionForm(createEmptySessionForm())}
+          />
         </div>
       </div>
-      {showSessionPopup && (
-        <div className="session-popup-wrapper">
-          <div className="card session-popup">
-            <SessionForm
-              value={sessionForm}
-              onChange={(field, val) => setSessionForm((prev) => ({ ...prev, [field]: val }))}
-              onSubmit={submitSession}
-              onCancel={closePopup}
-            />
-          </div>
-        </div>
-      )}
       <div className="session-list">
         {filteredSessions.map((session) => {
           const sessionSubjects = subjects.filter((s) => s.sessionId === session.id);
-          const visibles = selectedCategories.length
-            ? sessionSubjects.filter((s) => s.categoriesIds.some((cat) => selectedCategories.includes(cat)))
-            : sessionSubjects;
+          const visibles = sessionSubjects;
           if (group === 'CCU') {
             return (
               <div key={session.id} className="session-card session-summary-card">
@@ -2458,9 +2385,7 @@ export default function App() {
               group="CCU"
               sessions={state.sessions}
               subjects={state.subjects}
-              categories={state.categories}
               navigate={navigate}
-              onSelectSujet={onSelectSujet}
               onUpsert={upsertSession}
             />
           )}
@@ -2469,9 +2394,7 @@ export default function App() {
               group="CCSRM"
               sessions={state.sessions}
               subjects={state.subjects}
-              categories={state.categories}
               navigate={navigate}
-              onSelectSujet={onSelectSujet}
               onUpsert={upsertSession}
             />
           )}
