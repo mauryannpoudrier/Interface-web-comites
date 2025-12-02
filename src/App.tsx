@@ -3,6 +3,7 @@ import {
   type SyntheticEvent,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import Calendar from './components/Calendar';
