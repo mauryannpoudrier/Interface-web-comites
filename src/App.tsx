@@ -1068,9 +1068,13 @@ function SessionCard({
       </div>
       <div className="session-card-actions">
         <button className="bouton-secondaire" onClick={() => navigate({ page: 'session', sessionId: session.id })}>
-          Voir la séance
+          Ouvrir la séance
         </button>
-        {onEdit && <button className="bouton-lien" onClick={() => onEdit(session)}>Modifier</button>}
+        {onEdit && (
+          <button className="bouton-lien" onClick={() => onEdit(session)}>
+            Modifier la séance
+          </button>
+        )}
         {onDelete && (
           <button className="bouton-lien" onClick={() => onDelete(session.id)}>
             Supprimer
@@ -1450,6 +1454,8 @@ function CommitteePage({
   );
 
   const [sessionForm, setSessionForm] = useState<SessionFormValue>(() => createEmptySessionForm());
+  const [editing, setEditing] = useState<Session | null>(null);
+  const [editForm, setEditForm] = useState<SessionFormValue>(() => createEmptySessionForm());
   const filteredSessions = useMemo(() => {
     const sessionsForGroup = sessions.filter((s) => s.committeeGroup === group);
     return [...sessionsForGroup].sort((a, b) => getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a));
@@ -1462,8 +1468,29 @@ function CommitteePage({
   }, [createEmptySessionForm, onUpsert, sessionForm]);
 
   useEffect(() => {
+    if (editing) {
+      const { id: _id, committeeGroup: _committeeGroup, title: _title, ...rest } = editing;
+      setEditForm({
+        ...rest,
+        agendaDocuments: rest.agendaDocuments ?? [],
+        pvDocuments: rest.pvDocuments ?? [],
+        secondDate: rest.secondDate ?? '',
+        secondTime: rest.secondTime ?? '',
+      });
+    }
+  }, [editing]);
+
+  useEffect(() => {
     setSessionForm(createEmptySessionForm());
   }, [createEmptySessionForm]);
+
+  const submitEdit = useCallback(() => {
+    if (!editing || !editForm.sessionNumber || !editForm.date) return;
+    const payload = { ...editForm, id: editing.id } as Session;
+    onUpsert(payload);
+    setEditing(null);
+    setEditForm(createEmptySessionForm());
+  }, [createEmptySessionForm, editForm, editing, onUpsert]);
 
   const renderDocumentBlock = (
     label: string,
@@ -1514,6 +1541,9 @@ function CommitteePage({
                   >
                     Ouvrir la séance
                   </button>
+                  <button className="bouton-lien" onClick={() => setEditing(session)}>
+                    Modifier la séance
+                  </button>
                 </div>
                 {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun PV disponible')}
                 {renderDocumentBlock(
@@ -1536,6 +1566,9 @@ function CommitteePage({
                 >
                   Ouvrir la séance
                 </button>
+                <button className="bouton-lien" onClick={() => setEditing(session)}>
+                  Modifier la séance
+                </button>
               </div>
               {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun procès-verbal disponible')}
               {renderDocumentBlock(
@@ -1547,6 +1580,23 @@ function CommitteePage({
           );
         })}
       </div>
+      {editing && (
+        <div className="session-popup-wrapper home-edit-popup">
+          <div className="card session-popup">
+            <SessionForm
+              value={editForm}
+              onChange={(field, val) => setEditForm((prev) => ({ ...prev, [field]: val }))}
+              onSubmit={submitEdit}
+              onCancel={() => {
+                setEditing(null);
+                setEditForm(createEmptySessionForm());
+              }}
+              heading={`Modifier ${editing.sessionNumber}`}
+              submitLabel="Enregistrer les modifications"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
