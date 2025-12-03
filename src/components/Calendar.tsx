@@ -46,11 +46,21 @@ export default function Calendar(props: CalendarProps) {
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, Session[]>();
 
+    const addSessionToDate = (key: string, session: Session) => {
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      const list = map.get(key)!;
+      if (!list.includes(session)) {
+        list.push(session);
+      }
+    };
+
     for (const s of allSessions) {
       if (committeeFilter !== 'all' && s.committeeId !== committeeFilter) continue;
-      const key = s.date; // format YYYY-MM-DD
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(s);
+      addSessionToDate(s.date, s); // format YYYY-MM-DD
+      if (s.secondDate) {
+        addSessionToDate(s.secondDate, s);
+      }
     }
 
     return map;
@@ -63,10 +73,13 @@ export default function Calendar(props: CalendarProps) {
     let max = -Infinity;
 
     for (const session of allSessions) {
-      const date = new Date(session.date);
-      const year = Number.isNaN(date.getTime()) ? todayYear : date.getFullYear();
-      if (year < min) min = year;
-      if (year > max) max = year;
+      const allDates = [session.date, session.secondDate].filter(Boolean) as string[];
+      for (const rawDate of allDates) {
+        const date = new Date(rawDate);
+        const year = Number.isNaN(date.getTime()) ? todayYear : date.getFullYear();
+        if (year < min) min = year;
+        if (year > max) max = year;
+      }
     }
 
     return { minYear: min - 1, maxYear: max + 1 };
