@@ -1077,7 +1077,7 @@ function SessionCard({
         )}
         {onDelete && (
           <button className="bouton-lien" onClick={() => onDelete(session.id)}>
-            Supprimer
+            Supprimer la séance
           </button>
         )}
       </div>
@@ -1432,12 +1432,14 @@ function CommitteePage({
   subjects,
   navigate,
   onUpsert,
+  onDelete,
 }: {
   group: CommitteeGroup;
   sessions: Session[];
   subjects: Subject[];
   navigate: (route: Route) => void;
   onUpsert: (session: Session | Omit<Session, 'committeeGroup'> & { id?: string }) => void;
+  onDelete: (id: string) => void;
 }) {
   const createEmptySessionForm = useCallback(
     () => ({
@@ -1535,20 +1537,23 @@ function CommitteePage({
                 <p className="session-summary-number">{session.sessionNumber}</p>
                 <p className="session-summary-date">{formatSessionSchedule(session)}</p>
                 <div className="session-actions">
-                  <button
-                    className="bouton-secondaire"
-                    onClick={() => navigate({ page: 'session', sessionId: session.id })}
-                  >
-                    Ouvrir la séance
-                  </button>
-                  <button className="bouton-lien" onClick={() => setEditing(session)}>
-                    Modifier la séance
-                  </button>
-                </div>
-                {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun PV disponible')}
-                {renderDocumentBlock(
-                  'Ordre du jour',
-                  session.agendaDocuments,
+                <button
+                  className="bouton-secondaire"
+                  onClick={() => navigate({ page: 'session', sessionId: session.id })}
+                >
+                  Ouvrir la séance
+                </button>
+                <button className="bouton-lien" onClick={() => setEditing(session)}>
+                  Modifier la séance
+                </button>
+                <button className="bouton-lien" onClick={() => onDelete(session.id)}>
+                  Supprimer la séance
+                </button>
+              </div>
+              {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun PV disponible')}
+              {renderDocumentBlock(
+                'Ordre du jour',
+                session.agendaDocuments,
                   'Aucun ordre du jour disponible',
                 )}
               </div>
@@ -1568,6 +1573,9 @@ function CommitteePage({
                 </button>
                 <button className="bouton-lien" onClick={() => setEditing(session)}>
                   Modifier la séance
+                </button>
+                <button className="bouton-lien" onClick={() => onDelete(session.id)}>
+                  Supprimer la séance
                 </button>
               </div>
               {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun procès-verbal disponible')}
@@ -2209,6 +2217,7 @@ export default function App() {
   const [state, setState] = useState<AppState>(loadInitialState);
   const [route, setRoute] = useState<Route>(() => (typeof window !== 'undefined' ? parseHash() : { page: 'home' }));
   const [focusedSubjectId, setFocusedSubjectId] = useState<string | null>(null);
+  const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => setRoute(parseHash());
@@ -2256,6 +2265,17 @@ export default function App() {
       sessions: prev.sessions.filter((s) => s.id !== id),
       subjects: prev.subjects.filter((s) => s.sessionId !== id),
     }));
+  };
+
+  const sessionToDelete = useMemo(
+    () => state.sessions.find((session) => session.id === sessionToDeleteId) ?? null,
+    [sessionToDeleteId, state.sessions],
+  );
+
+  const confirmDeleteSession = () => {
+    if (!sessionToDeleteId) return;
+    deleteSession(sessionToDeleteId);
+    setSessionToDeleteId(null);
   };
 
   const upsertSubject = (payload: Subject | (Omit<Subject, 'id'> & { id?: string })) => {
@@ -2490,7 +2510,7 @@ export default function App() {
               sessions={state.sessions}
               subjects={state.subjects}
               onUpsert={upsertSession}
-              onDelete={deleteSession}
+              onDelete={(id) => setSessionToDeleteId(id)}
               navigate={navigate}
             />
           )}
@@ -2501,6 +2521,7 @@ export default function App() {
               subjects={state.subjects}
               navigate={navigate}
               onUpsert={upsertSession}
+              onDelete={(id) => setSessionToDeleteId(id)}
             />
           )}
           {route.page === 'ccsrm' && (
@@ -2510,6 +2531,7 @@ export default function App() {
               subjects={state.subjects}
               navigate={navigate}
               onUpsert={upsertSession}
+              onDelete={(id) => setSessionToDeleteId(id)}
             />
           )}
           {route.page === 'tasks' && (
@@ -2547,6 +2569,32 @@ export default function App() {
         </main>
       </div>
     </div>
+    {sessionToDelete && (
+      <div className="modal-overlay">
+        <div className="card modal-panel">
+          <div className="entete-formulaire">
+            <div>
+              <p className="surTitre">Suppression</p>
+              <h3>Supprimer {sessionToDelete.sessionNumber} ?</h3>
+            </div>
+          </div>
+          <div className="body-formulaire">
+            <p>
+              Voulez-vous vraiment supprimer cette séance ? Cette action est irréversible et supprime aussi
+              les sujets associés.
+            </p>
+            <div className="actions-formulaire">
+              <button className="bouton-secondaire" type="button" onClick={() => setSessionToDeleteId(null)}>
+                Annuler
+              </button>
+              <button className="bouton-principal" type="button" onClick={confirmDeleteSession}>
+                Supprimer la séance
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     <BackToTopButton />
   </>
   );
