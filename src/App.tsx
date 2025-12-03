@@ -36,6 +36,8 @@ export interface Session {
   sessionNumber: string;
   date: string;
   time?: string;
+  secondDate?: string;
+  secondTime?: string;
   title?: string;
   pvDocuments: DocumentLink[];
   agendaDocuments: DocumentLink[];
@@ -432,6 +434,57 @@ function formatDate(date: string, time?: string) {
   return parsed.toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function sessionDateValue(date: string, time?: string) {
+  return new Date(time ? `${date}T${time}` : date).getTime();
+}
+
+function getSessionDateValues(session: Session) {
+  const dates: Array<{ date: string; time?: string }> = [{ date: session.date, time: session.time }];
+  if (session.secondDate) {
+    dates.push({ date: session.secondDate, time: session.secondTime });
+  }
+  return dates;
+}
+
+function getSessionEarliestTimestamp(session: Session) {
+  const values = getSessionDateValues(session)
+    .map((entry) => sessionDateValue(entry.date, entry.time))
+    .filter((value) => !Number.isNaN(value));
+  return values.length ? Math.min(...values) : 0;
+}
+
+function getSessionLatestTimestamp(session: Session) {
+  const values = getSessionDateValues(session)
+    .map((entry) => sessionDateValue(entry.date, entry.time))
+    .filter((value) => !Number.isNaN(value));
+  return values.length ? Math.max(...values) : 0;
+}
+
+function sessionMatchesDate(session: Session, isoDate: string) {
+  return getSessionDateValues(session).some((entry) => entry.date === isoDate);
+}
+
+function hasFutureDate(session: Session, today: Date) {
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
+  return getSessionDateValues(session).some((entry) => {
+    const parsed = new Date(entry.date);
+    parsed.setHours(0, 0, 0, 0);
+    return parsed >= todayStart;
+  });
+}
+
+function formatSessionSchedule(session: Session) {
+  const baseDate = formatDate(session.date, session.time);
+  const baseTime = session.time ? ` • ${session.time}` : '';
+  if (session.secondDate) {
+    const secondDate = formatDate(session.secondDate, session.secondTime);
+    const secondTime = session.secondTime ? ` • ${session.secondTime}` : '';
+    return `${baseDate}${baseTime} (suite le ${secondDate}${secondTime})`;
+  }
+  return `${baseDate}${baseTime}`;
+}
+
 function parseHash(): Route {
   const hash = window.location.hash.replace('#', '');
   const parts = hash.split('/').filter(Boolean);
@@ -678,6 +731,8 @@ function EditableTagList({
     );
   }
 
+type SessionFormValue = Omit<Session, 'id' | 'committeeGroup' | 'title'>;
+
 function SessionForm({
   value,
   onChange,
@@ -686,8 +741,8 @@ function SessionForm({
   heading = 'Ajouter une séance',
   submitLabel = 'Enregistrer la séance',
 }: {
-  value: Omit<Session, 'id' | 'committeeGroup' | 'title'>;
-  onChange: (field: keyof Omit<Session, 'id' | 'committeeGroup' | 'title'>, val: string | DocumentLink[]) => void;
+  value: SessionFormValue;
+  onChange: (field: keyof SessionFormValue, val: string | DocumentLink[]) => void;
   onSubmit: () => void;
   onCancel?: () => void;
   heading?: string;
@@ -713,6 +768,24 @@ function SessionForm({
         <label className="form-field">
           <span className="form-label">Heure</span>
           <input type="time" value={value.time ?? ''} onChange={(e) => onChange('time', e.target.value)} />
+        </label>
+      </div>
+      <div className="form-row">
+        <label className="form-field">
+          <span className="form-label">Deuxième date de la séance (optionnel)</span>
+          <input
+            type="date"
+            value={value.secondDate ?? ''}
+            onChange={(e) => onChange('secondDate', e.target.value)}
+          />
+        </label>
+        <label className="form-field">
+          <span className="form-label">Deuxième heure (optionnel)</span>
+          <input
+            type="time"
+            value={value.secondTime ?? ''}
+            onChange={(e) => onChange('secondTime', e.target.value)}
+          />
         </label>
       </div>
       <div className="form-row">
@@ -990,9 +1063,7 @@ function SessionCard({
       <div className="session-card-content">
         <span className={committeeClass}>{meta.label}</span>
         <p className="session-number">{session.sessionNumber}</p>
-        <p className="session-date">
-          {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
-        </p>
+        <p className="session-date">{formatSessionSchedule(session)}</p>
         <p className="session-subject-count">{subjects.length} sujet(s) lié(s)</p>
       </div>
       <div className="session-card-actions">
@@ -1210,27 +1281,30 @@ function HomePage({
   navigate: (route: Route) => void;
 }) {
   const [editing, setEditing] = useState<Session | null>(null);
-  const emptySessionForm: Omit<Session, 'id' | 'committeeGroup' | 'title'> = {
+  const emptySessionForm: SessionFormValue = {
     committeeId: 'CCU',
     sessionNumber: '',
     date: '',
     time: '',
+    secondDate: '',
+    secondTime: '',
     pvDocuments: [],
     agendaDocuments: [],
   };
   const createEmptySessionForm = () => ({ ...emptySessionForm, pvDocuments: [], agendaDocuments: [] });
-  const [form, setForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>(() =>
-    createEmptySessionForm(),
-  );
-  const [editForm, setEditForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>(() =>
-    createEmptySessionForm(),
-  );
+  const [form, setForm] = useState<SessionFormValue>(() => createEmptySessionForm());
+  const [editForm, setEditForm] = useState<SessionFormValue>(() => createEmptySessionForm());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (editing) {
       const { id, committeeGroup, title: _title, ...rest } = editing;
-      setEditForm({ ...rest, agendaDocuments: rest.agendaDocuments ?? [] });
+      setEditForm({
+        ...rest,
+        agendaDocuments: rest.agendaDocuments ?? [],
+        secondDate: rest.secondDate ?? '',
+        secondTime: rest.secondTime ?? '',
+      });
     }
   }, [editing]);
 
@@ -1241,26 +1315,21 @@ function HomePage({
   }, []);
 
   const sortedSessions = useMemo(
-    () =>
-      [...sessions].sort((a, b) =>
-        new Date(`${a.date}T${a.time ?? '00:00'}`).getTime() -
-        new Date(`${b.date}T${b.time ?? '00:00'}`).getTime(),
-      ),
+    () => [...sessions].sort((a, b) => getSessionEarliestTimestamp(a) - getSessionEarliestTimestamp(b)),
     [sessions],
   );
 
   const futureSessions = useMemo(
     () =>
-      sortedSessions.filter((session) => {
-        const sessionDate = new Date(session.date);
-        sessionDate.setHours(0, 0, 0, 0);
-        return sessionDate >= today;
-      }),
+      sortedSessions.filter((session) => hasFutureDate(session, today)),
     [sortedSessions, today],
   );
 
   const visibleSessions = useMemo(
-    () => (selectedDate ? sortedSessions.filter((session) => session.date === selectedDate) : futureSessions),
+    () =>
+      selectedDate
+        ? sortedSessions.filter((session) => sessionMatchesDate(session, selectedDate))
+        : futureSessions,
     [selectedDate, sortedSessions, futureSessions],
   );
 
@@ -1372,22 +1441,18 @@ function CommitteePage({
       sessionNumber: '',
       date: '',
       time: '',
+      secondDate: '',
+      secondTime: '',
       pvDocuments: [],
       agendaDocuments: [],
     }),
     [group],
   );
 
-  const [sessionForm, setSessionForm] = useState<Omit<Session, 'id' | 'committeeGroup' | 'title'>>(
-    () => createEmptySessionForm(),
-  );
+  const [sessionForm, setSessionForm] = useState<SessionFormValue>(() => createEmptySessionForm());
   const filteredSessions = useMemo(() => {
     const sessionsForGroup = sessions.filter((s) => s.committeeGroup === group);
-    return [...sessionsForGroup].sort((a, b) => {
-      const aValue = new Date(a.time ? `${a.date}T${a.time}` : a.date).getTime();
-      const bValue = new Date(b.time ? `${b.date}T${b.time}` : b.date).getTime();
-      return bValue - aValue;
-    });
+    return [...sessionsForGroup].sort((a, b) => getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a));
   }, [group, sessions]);
 
   const submitSession = useCallback(() => {
@@ -1441,7 +1506,7 @@ function CommitteePage({
             return (
               <div key={session.id} className="session-card session-summary-card">
                 <p className="session-summary-number">{session.sessionNumber}</p>
-                <p className="session-summary-date">{formatDate(session.date, session.time)}</p>
+                <p className="session-summary-date">{formatSessionSchedule(session)}</p>
                 <div className="session-actions">
                   <button
                     className="bouton-secondaire"
@@ -1463,7 +1528,7 @@ function CommitteePage({
           return (
             <div key={session.id} className="session-card session-summary-card">
               <p className="session-summary-number">{session.sessionNumber}</p>
-              <p className="session-summary-date">{formatDate(session.date, session.time)}</p>
+              <p className="session-summary-date">{formatSessionSchedule(session)}</p>
               <div className="session-actions">
                 <button
                   className="bouton-secondaire"
@@ -1544,7 +1609,11 @@ function SearchPage({
         }
         return true;
       })
-      .sort((a, b) => (b.session ? new Date(`${b.session.date}`).getTime() : 0) - (a.session ? new Date(`${a.session.date}`).getTime() : 0));
+      .sort(
+        (a, b) =>
+          (b.session ? getSessionLatestTimestamp(b.session) : 0) -
+          (a.session ? getSessionLatestTimestamp(a.session) : 0),
+      );
   }, [committee, keywords, resolution, selectedCategories, sessions, subjects]);
 
   const filteredCategories =
@@ -1655,7 +1724,7 @@ function SearchPage({
                   {badgeText}
                 </span>
                 <h3 className="result-title">{subject.subjectTitle}</h3>
-                <p className="result-infos">{session ? formatDate(session.date, session.time) : ''}</p>
+                <p className="result-infos">{session ? formatSessionSchedule(session) : ''}</p>
                 <div className="result-categories">
                   {categoryLabels.length ? (
                     categoryLabels.map((label) => (
@@ -1957,9 +2026,7 @@ function SessionDetail({
           <div className="entete-seance">
             <div>
               <p className="session-number-hero">{session.sessionNumber}</p>
-              <p className="date">
-                {formatDate(session.date, session.time)} {session.time && <span>• {session.time}</span>}
-              </p>
+              <p className="date">{formatSessionSchedule(session)}</p>
             </div>
             <Badge committeeId={session.committeeId} />
           </div>
