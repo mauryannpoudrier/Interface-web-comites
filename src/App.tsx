@@ -14,14 +14,20 @@ import logoVille from './logo-vvd-couleur-nom-dessous.png';
 export type CommitteeId = 'CCC' | 'CCSRM' | 'CCU';
 export type CommitteeGroup = 'CCSRM' | 'CCU';
 
-type TaskStatus = 'waiting' | 'in_progress' | 'done';
+type TaskStatus = 'not_started' | 'in_progress' | 'done';
 
 interface Task {
   id: string;
-  title: string;
+  subjectId: string;
+  subjectNumber: string;
+  subjectTitle: string;
+  sessionId: string;
+  description: string;
   assignee: string;
+  resources: string;
   status: TaskStatus;
-  note: string;
+  due: string;
+  notes: string;
 }
 
 export interface DocumentLink {
@@ -352,24 +358,42 @@ const defaultState: AppState = {
   tasks: [
     {
       id: 'task-accueil',
-      title: 'Préparer ordre du jour CCU',
-      assignee: 'Service d’urbanisme',
+      subjectId: 'ccc1-com-1-g',
+      subjectNumber: 'Com. 1-G',
+      subjectTitle: 'Intersection 7e Rue / 10e Avenue.',
+      sessionId: 'CCC-1-2013-03-13',
+      description: 'Préparer un plan d’intervention pour sécuriser l’intersection et clarifier la signalisation.',
+      assignee: 'Équipe projets',
+      resources: 'Travaux publics, Signalisation',
       status: 'in_progress',
-      note: 'Valider les points prioritaires avec le comité.',
+      due: 'Avant dépôt CCU de septembre',
+      notes: 'Coordonner avec la prochaine séance pour validation.',
     },
     {
       id: 'task-invitations',
-      title: 'Envoyer invitation aux membres',
-      assignee: 'Coordination',
-      status: 'waiting',
-      note: 'Ajouter les documents en pièce jointe.',
+      subjectId: 'sub-veloroute',
+      subjectNumber: '1',
+      subjectTitle: 'Boucle cyclable temporaire',
+      sessionId: 'CCC-07-2025-02-12',
+      description: 'Valider le tracé de la boucle et confirmer les zones prioritaires.',
+      assignee: 'Service d’urbanisme',
+      resources: 'Équipe d’ingénierie',
+      status: 'not_started',
+      due: 'Été 2025',
+      notes: 'Attendre la réception des données de circulation.',
     },
     {
       id: 'task-suivi',
-      title: 'Mettre à jour le suivi des résolutions',
-      assignee: 'Équipe projets',
+      subjectId: 'ccc1-com-1-h',
+      subjectNumber: 'Com. 1-H',
+      subjectTitle: 'Déneigement des trottoirs.',
+      sessionId: 'CCC-1-2013-03-13',
+      description: 'Documenter les interventions de déneigement prévues.',
+      assignee: 'Coordination',
+      resources: 'Travaux publics',
       status: 'done',
-      note: 'Partager le tableau avant la prochaine séance.',
+      due: 'Avant la prochaine séance',
+      notes: 'Informer les citoyens concernés.',
     },
   ],
 };
@@ -408,13 +432,34 @@ function loadInitialState(): AppState {
       } as Subject;
     });
     const tasks: Task[] = parsed.tasks?.length
-      ? parsed.tasks.map((task) => ({
-          ...task,
-          status:
-            task.status === 'done' || task.status === 'in_progress' || task.status === 'waiting'
-              ? task.status
-              : 'waiting',
-        }))
+      ? parsed.tasks.map((task) => {
+          const status: TaskStatus =
+            task.status === 'done'
+              ? 'done'
+              : task.status === 'in_progress'
+                ? 'in_progress'
+                : 'not_started';
+
+          const subjectId = 'subjectId' in task ? (task as Task).subjectId : '';
+          const subjectMeta = subjectId ? subjects.find((s) => s.id === subjectId) : undefined;
+          const subjectNumber = subjectMeta ? getPrimaryNumber(subjectMeta) : (task as Task).subjectNumber ?? '';
+          const subjectTitle = subjectMeta?.subjectTitle ?? (task as Task).subjectTitle ?? '';
+          const sessionId = subjectMeta?.sessionId ?? (task as Task).sessionId ?? '';
+
+          return {
+            id: task.id ?? `task-${Date.now()}`,
+            subjectId,
+            subjectNumber,
+            subjectTitle,
+            sessionId,
+            description: 'description' in task ? (task as Task).description : (task as { title?: string }).title ?? '',
+            assignee: 'assignee' in task ? (task as Task).assignee : '',
+            resources: 'resources' in task ? (task as Task).resources : '',
+            status,
+            due: 'due' in task ? (task as Task).due : '',
+            notes: 'notes' in task ? (task as Task).notes : (task as { note?: string }).note ?? '',
+          } satisfies Task;
+        })
       : defaultState.tasks;
     return { ...parsed, sessions, categories, subjects, tasks };
   } catch (error) {
@@ -1805,22 +1850,221 @@ function SearchPage({
 }
 
 const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string; icon: string; color: string }[] = [
-  { value: 'waiting', label: 'En attente', icon: '⏸️', color: '#2563eb' },
-  { value: 'in_progress', label: 'En progression', icon: '⏳', color: '#ea580c' },
+  { value: 'not_started', label: 'Non débuté', icon: '⏸️', color: '#2563eb' },
+  { value: 'in_progress', label: 'En cours', icon: '⏳', color: '#ea580c' },
   { value: 'done', label: 'Terminé', icon: '✅', color: '#16a34a' },
 ];
 
+function TaskModal({
+  task,
+  subjects,
+  sessions,
+  initialSubjectId,
+  onClose,
+  onSave,
+}: {
+  task?: Task;
+  subjects: Subject[];
+  sessions: Session[];
+  initialSubjectId?: string;
+  onClose: () => void;
+  onSave: (payload: Omit<Task, 'id'> & { id?: string }) => void;
+}) {
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(() =>
+    initialSubjectId ?? task?.subjectId ?? subjects[0]?.id ?? '',
+  );
+  const [form, setForm] = useState({
+    description: task?.description ?? '',
+    assignee: task?.assignee ?? '',
+    resources: task?.resources ?? '',
+    status: task?.status ?? 'not_started',
+    due: task?.due ?? '',
+    notes: task?.notes ?? '',
+  });
+
+  useEffect(() => {
+    if (initialSubjectId) {
+      setSelectedSubjectId(initialSubjectId);
+    }
+  }, [initialSubjectId]);
+
+  useEffect(() => {
+    if (task) {
+      setForm({
+        description: task.description ?? '',
+        assignee: task.assignee ?? '',
+        resources: task.resources ?? '',
+        status: task.status ?? 'not_started',
+        due: task.due ?? '',
+        notes: task.notes ?? '',
+      });
+      if (task.subjectId) {
+        setSelectedSubjectId(task.subjectId);
+      }
+    }
+  }, [task]);
+
+  const subject = subjects.find((s) => s.id === selectedSubjectId) ?? subjects.find((s) => s.id === initialSubjectId);
+  const session = subject
+    ? sessions.find((s) => s.id === subject.sessionId)
+    : task
+      ? sessions.find((s) => s.id === task.sessionId)
+      : undefined;
+  const subjectNumber = subject ? getPrimaryNumber(subject) : task?.subjectNumber ?? 'Sujet';
+
+  const submit = () => {
+    if (!subject) return;
+    onSave({
+      id: task?.id,
+      subjectId: subject.id,
+      subjectNumber,
+      subjectTitle: subject.subjectTitle,
+      sessionId: subject.sessionId,
+      description: form.description.trim(),
+      assignee: form.assignee.trim(),
+      resources: form.resources.trim(),
+      status: form.status as TaskStatus,
+      due: form.due.trim(),
+      notes: form.notes.trim(),
+    });
+  };
+
+  const subjectOptions = subjects.map((s) => {
+    const sessionNumber = sessions.find((sess) => sess.id === s.sessionId)?.sessionNumber ?? 'Séance';
+    return { id: s.id, label: `${sessionNumber} – ${getPrimaryNumber(s)} · ${s.subjectTitle}` };
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="card modal-panel task-modal">
+        <div className="entete-formulaire">
+          <div>
+            <p className="surTitre">Tâche liée au sujet</p>
+            <h3>
+              {subjectNumber} · {subject?.subjectTitle ?? task?.subjectTitle ?? 'Sélectionnez un sujet'}
+            </h3>
+            {session && <p className="map-hint">Séance : {session.sessionNumber}</p>}
+          </div>
+          <button className="bouton-lien" onClick={onClose} aria-label="Fermer la fenêtre de tâche">
+            Fermer
+          </button>
+        </div>
+
+        <div className="task-modal-grid">
+          <label className="form-block">
+            <span className="form-label">Sujet lié</span>
+            <select value={selectedSubjectId} onChange={(e) => setSelectedSubjectId(e.target.value)}>
+              {subjectOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-block">
+            <span className="form-label">Explication de la tâche</span>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              rows={3}
+              placeholder="Décrire ce qu’il y a à faire"
+            />
+          </label>
+
+          <div className="task-modal-two-cols">
+            <label className="form-block">
+              <span className="form-label">Responsable</span>
+              <input
+                value={form.assignee}
+                onChange={(e) => setForm((prev) => ({ ...prev, assignee: e.target.value }))}
+                placeholder="Personne responsable"
+              />
+            </label>
+            <label className="form-block">
+              <span className="form-label">Personnes ressources</span>
+              <input
+                value={form.resources}
+                onChange={(e) => setForm((prev) => ({ ...prev, resources: e.target.value }))}
+                placeholder="Équipe ou personnes en appui"
+              />
+            </label>
+          </div>
+
+          <div className="task-modal-two-cols">
+            <label className="form-block">
+              <span className="form-label">Statut de la tâche</span>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as TaskStatus }))}
+              >
+                {TASK_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-block">
+              <span className="form-label">Date / échéancier (texte libre)</span>
+              <input
+                value={form.due}
+                onChange={(e) => setForm((prev) => ({ ...prev, due: e.target.value }))}
+                placeholder="Été 2025, Avant dépôt CCU de septembre, ..."
+              />
+            </label>
+          </div>
+
+          <label className="form-block">
+            <span className="form-label">Note supplémentaire</span>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+              rows={3}
+              placeholder="Ajouter un rappel ou un contexte"
+            />
+          </label>
+        </div>
+
+        <div className="actions-formulaire">
+          <button className="bouton-principal" onClick={submit}>
+            Enregistrer la tâche
+          </button>
+          <button className="bouton-secondaire" onClick={onClose}>
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TasksPage({
   tasks,
+  sessions,
+  subjects,
   onAddTask,
-  onUpdateTask,
+  onEditTask,
   onDeleteTask,
 }: {
   tasks: Task[];
+  sessions: Session[];
+  subjects: Subject[];
   onAddTask: () => void;
-  onUpdateTask: (id: string, field: keyof Task, value: string | TaskStatus) => void;
+  onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
 }) {
+  const groupedTasks = useMemo(() => {
+    const buckets = new Map<string, Task[]>();
+    tasks.forEach((task) => {
+      const key = task.assignee?.trim() || 'Non assigné';
+      const list = buckets.get(key) ?? [];
+      list.push(task);
+      buckets.set(key, list);
+    });
+    return buckets;
+  }, [tasks]);
+
   return (
     <div className="tasks-page">
       <div className="card tasks-card">
@@ -1837,76 +2081,79 @@ function TasksPage({
           </button>
         </div>
 
-        <div className="task-table" role="table" aria-label="Tableau des tâches">
-          <div className="task-row task-header" role="row">
-            <div role="columnheader">Tâche</div>
-            <div role="columnheader">Assignée à</div>
-            <div role="columnheader">Statut</div>
-            <div role="columnheader">Note supplémentaire</div>
-            <div role="columnheader" className="task-actions-col" aria-label="Actions" />
-          </div>
+        <div className="task-groups">
+          {tasks.length === 0 && <p className="vide">Aucune tâche pour le moment.</p>}
+          {Array.from(groupedTasks.entries()).map(([assignee, items]) => (
+            <div key={assignee} className="task-group">
+              <div className="task-group-header">
+                <p className="surTitre">Responsable</p>
+                <h3>{assignee}</h3>
+              </div>
+              <div className="task-group-list">
+                {items.map((task) => {
+                  const statusDefinition = TASK_STATUS_OPTIONS.find((opt) => opt.value === task.status);
+                  const session = sessions.find((s) => s.id === task.sessionId);
+                  const subject = subjects.find((s) => s.id === task.subjectId);
+                  const committeeBadge = session?.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm';
 
-          {tasks.length === 0 && (
-            <div className="task-row empty-task" role="row">
-              <div className="empty-message" role="cell">
-                Aucune tâche pour le moment. Ajoutez une première action pour démarrer le suivi.
+                  return (
+                    <div key={task.id} className="task-list-row">
+                      <div className="task-row-top">
+                        <div>
+                          <p className="task-subject-number">{task.subjectNumber}</p>
+                          <p className="task-subject-title">{task.subjectTitle}</p>
+                          <p className="task-session-ref">
+                            {session ? `Séance ${session.sessionNumber}` : 'Séance inconnue'}
+                          </p>
+                        </div>
+                        {statusDefinition && (
+                          <span className={`status-chip task-status-pill ${committeeBadge}`} style={{ color: statusDefinition.color }}>
+                            {statusDefinition.icon} {statusDefinition.label}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="task-description-line">
+                        {task.description || 'Aucune explication pour cette tâche.'}
+                      </p>
+
+                      <div className="task-meta-row">
+                        <span className="task-meta-label">Personnes ressources :</span>
+                        <span>{task.resources || '—'}</span>
+                      </div>
+                      <div className="task-meta-row">
+                        <span className="task-meta-label">Échéancier :</span>
+                        <span>{task.due || '—'}</span>
+                      </div>
+                      <div className="task-meta-row">
+                        <span className="task-meta-label">Notes :</span>
+                        <span>{task.notes || '—'}</span>
+                      </div>
+
+                      <div className="task-actions-row">
+                        <button className="bouton-secondaire" onClick={() => onEditTask(task)}>
+                          Modifier
+                        </button>
+                        <button className="bouton-lien" onClick={() => onDeleteTask(task.id)}>
+                          Supprimer
+                        </button>
+                        {subject && (
+                          <button
+                            className="bouton-lien"
+                            onClick={() => {
+                              window.location.hash = `#/sessions/${subject.sessionId}`;
+                            }}
+                          >
+                            Ouvrir le sujet
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          )}
-
-          {tasks.map((task) => {
-            const statusDefinition = TASK_STATUS_OPTIONS.find((opt) => opt.value === task.status);
-            return (
-              <div key={task.id} className="task-row" role="row">
-                <div role="cell">
-                  <input
-                    className="task-input"
-                    value={task.title}
-                    onChange={(e) => onUpdateTask(task.id, 'title', e.target.value)}
-                    placeholder="Décrire la tâche"
-                  />
-                </div>
-                <div role="cell">
-                  <input
-                    className="task-input"
-                    value={task.assignee}
-                    onChange={(e) => onUpdateTask(task.id, 'assignee', e.target.value)}
-                    placeholder="Ajouter un responsable"
-                  />
-                </div>
-                <div role="cell" className="task-status-cell">
-                  <span className="status-chip" style={{ color: statusDefinition?.color }}>
-                    {statusDefinition?.icon} {statusDefinition?.label}
-                  </span>
-                  <select
-                    className="task-select"
-                    value={task.status}
-                    onChange={(e) => onUpdateTask(task.id, 'status', e.target.value as TaskStatus)}
-                    aria-label={`Statut pour ${task.title || 'cette tâche'}`}
-                  >
-                    {TASK_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {`${option.icon} ${option.label}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div role="cell">
-                  <input
-                    className="task-input"
-                    value={task.note}
-                    onChange={(e) => onUpdateTask(task.id, 'note', e.target.value)}
-                    placeholder="Ajouter un rappel ou une précision"
-                  />
-                </div>
-                <div role="cell" className="task-actions-col">
-                  <button className="bouton-lien" onClick={() => onDeleteTask(task.id)}>
-                    Supprimer
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          ))}
         </div>
       </div>
     </div>
@@ -1924,6 +2171,9 @@ function SessionDetail({
   onDeleteCategory,
   onSelectSujet,
   focusedSubjectId,
+  tasks,
+  onAssignTask,
+  onEditTask,
 }: {
   session: Session;
   subjects: Subject[];
@@ -1935,6 +2185,9 @@ function SessionDetail({
   onDeleteCategory: (id: string) => void;
   onSelectSujet: (sujetId: string) => void;
   focusedSubjectId?: string | null;
+  tasks: Task[];
+  onAssignTask: (subject: Subject) => void;
+  onEditTask: (task: Task) => void;
 }) {
   const [editing, setEditing] = useState<Subject | null>(null);
   const [locatingSubject, setLocatingSubject] = useState<Subject | null>(null);
@@ -1980,6 +2233,16 @@ function SessionDetail({
     const el = document.getElementById(`subject-${focusedSubjectId}`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [focusedSubjectId]);
+
+  const tasksBySubject = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    tasks.forEach((task) => {
+      const existing = map.get(task.subjectId) ?? [];
+      existing.push(task);
+      map.set(task.subjectId, existing);
+    });
+    return map;
+  }, [tasks]);
 
   const save = () => {
     const primaryNumber =
@@ -2114,16 +2377,31 @@ function SessionDetail({
         {visibles.map((subject) => (
           <div
             key={subject.id}
-            className={`card ${focusedSubjectId === subject.id ? 'subject-focused' : ''}`}
+            className={`card subject-card ${focusedSubjectId === subject.id ? 'subject-focused' : ''}`}
             id={`subject-${subject.id}`}
           >
+            <div className="subject-task-alerts" aria-label="Tâches en attente">
+              {(tasksBySubject.get(subject.id) ?? [])
+                .filter((task) => task.status !== 'done')
+                .map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    className="task-alert-icon"
+                    title={`Tâche : ${task.description || task.subjectTitle}`}
+                    onClick={() => onEditTask(task)}
+                  >
+                    !
+                  </button>
+                ))}
+            </div>
             <SubjectDetail
               subject={subject}
               categories={categories}
               allSubjects={allSubjects}
               onNavigateToSubject={onSelectSujet}
             />
-            <div className="actions">
+            <div className="subject-actions">
               <button className="bouton-principal" onClick={() => openLocationPicker(subject)}>
                 {subject.locations?.length ? 'Mettre à jour les localisations' : 'Ajouter une localisation'}
               </button>
@@ -2132,6 +2410,9 @@ function SessionDetail({
               </button>
               <button className="bouton-lien" onClick={() => onDeleteSubject(subject.id)}>
                 Supprimer
+              </button>
+              <button className="bouton-secondaire assign-task-button" onClick={() => onAssignTask(subject)}>
+                Assigner une tâche
               </button>
             </div>
           </div>
@@ -2218,6 +2499,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>(() => (typeof window !== 'undefined' ? parseHash() : { page: 'home' }));
   const [focusedSubjectId, setFocusedSubjectId] = useState<string | null>(null);
   const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
+  const [taskModal, setTaskModal] = useState<{ task?: Task; subjectId?: string } | null>(null);
 
   useEffect(() => {
     const handler = () => setRoute(parseHash());
@@ -2260,11 +2542,15 @@ export default function App() {
   };
 
   const deleteSession = (id: string) => {
-    setState((prev) => ({
-      ...prev,
-      sessions: prev.sessions.filter((s) => s.id !== id),
-      subjects: prev.subjects.filter((s) => s.sessionId !== id),
-    }));
+    setState((prev) => {
+      const removedSubjectIds = prev.subjects.filter((s) => s.sessionId === id).map((s) => s.id);
+      return {
+        ...prev,
+        sessions: prev.sessions.filter((s) => s.id !== id),
+        subjects: prev.subjects.filter((s) => s.sessionId !== id),
+        tasks: prev.tasks.filter((task) => !removedSubjectIds.includes(task.subjectId)),
+      };
+    });
   };
 
   const sessionToDelete = useMemo(
@@ -2342,7 +2628,11 @@ export default function App() {
   };
 
   const deleteSubject = (id: string) => {
-    setState((prev) => ({ ...prev, subjects: prev.subjects.filter((s) => s.id !== id) }));
+    setState((prev) => ({
+      ...prev,
+      subjects: prev.subjects.filter((s) => s.id !== id),
+      tasks: prev.tasks.filter((task) => task.subjectId !== id),
+    }));
   };
 
   const addCategory = (categorie: Category) => {
@@ -2376,26 +2666,29 @@ export default function App() {
     }));
   };
 
-  const addTask = () => {
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      title: '',
-      assignee: '',
-      status: 'waiting',
-      note: '',
-    };
-    setState((prev) => ({ ...prev, tasks: [...prev.tasks, newTask] }));
-  };
-
-  const updateTask = (id: string, field: keyof Task, value: string | TaskStatus) => {
-    setState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((task) => (task.id === id ? { ...task, [field]: value } : task)),
-    }));
+  const saveTask = (payload: Omit<Task, 'id'> & { id?: string }) => {
+    const id = payload.id ?? `task-${Date.now()}`;
+    const normalized: Task = { ...payload, id } as Task;
+    setState((prev) => {
+      const exists = prev.tasks.some((task) => task.id === id);
+      const tasks = exists
+        ? prev.tasks.map((task) => (task.id === id ? normalized : task))
+        : [...prev.tasks, normalized];
+      return { ...prev, tasks };
+    });
+    setTaskModal(null);
   };
 
   const deleteTask = (id: string) => {
     setState((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.id !== id) }));
+  };
+
+  const openTaskModal = (subjectId?: string) => {
+    setTaskModal({ subjectId });
+  };
+
+  const openTaskEditModal = (task: Task) => {
+    setTaskModal({ task, subjectId: task.subjectId });
   };
 
   const onSelectSujet = (sujetId: string) => {
@@ -2537,8 +2830,10 @@ export default function App() {
           {route.page === 'tasks' && (
             <TasksPage
               tasks={state.tasks}
-              onAddTask={addTask}
-              onUpdateTask={updateTask}
+              sessions={state.sessions}
+              subjects={state.subjects}
+              onAddTask={() => openTaskModal()}
+              onEditTask={openTaskEditModal}
               onDeleteTask={deleteTask}
             />
           )}
@@ -2563,6 +2858,9 @@ export default function App() {
               onDeleteCategory={deleteCategory}
               onSelectSujet={onSelectSujet}
               focusedSubjectId={focusedSubjectId}
+              tasks={state.tasks}
+              onAssignTask={(subject) => openTaskModal(subject.id)}
+              onEditTask={openTaskEditModal}
             />
           )}
           {route.page === 'session' && !currentSession && <p className="vide">Séance introuvable.</p>}
@@ -2594,6 +2892,16 @@ export default function App() {
           </div>
         </div>
       </div>
+    )}
+    {taskModal && (
+      <TaskModal
+        task={taskModal.task}
+        subjects={state.subjects}
+        sessions={state.sessions}
+        initialSubjectId={taskModal.subjectId}
+        onClose={() => setTaskModal(null)}
+        onSave={saveTask}
+      />
     )}
     <BackToTopButton />
   </>

@@ -750,6 +750,21 @@ input {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
 
+.task-modal {
+  max-width: 760px;
+}
+
+.task-modal-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.task-modal-two-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
 .coordonnees {
   display: flex;
   gap: 12px;
@@ -799,6 +814,52 @@ input {
 .subject-focused {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.subject-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subject-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.assign-task-button {
+  margin-left: auto;
+  align-self: flex-end;
+}
+
+.subject-task-alerts {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.task-alert-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 14px rgba(185, 28, 28, 0.12);
+}
+
+.task-alert-icon:hover {
+  background: #fee2e2;
 }
 
 .result-list {
@@ -1211,6 +1272,93 @@ input {
   display: grid;
   gap: 10px;
   margin-top: 16px;
+}
+
+.task-groups {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.task-group {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--card-muted);
+}
+
+.task-group-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.task-group-header h3 {
+  margin: 0;
+}
+
+.task-group-list {
+  display: grid;
+  gap: 10px;
+}
+
+.task-list-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 8px;
+}
+
+.task-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.task-subject-number {
+  margin: 0;
+  font-weight: 800;
+}
+
+.task-subject-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.task-session-ref {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+}
+
+.task-status-pill {
+  background: #fff;
+}
+
+.task-description-line {
+  margin: 0;
+}
+
+.task-meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #374151;
+}
+
+.task-meta-label {
+  font-weight: 700;
+  color: #111827;
+}
+
+.task-actions-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .task-row {
