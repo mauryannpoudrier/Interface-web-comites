@@ -1094,17 +1094,37 @@ function SessionCard({
   onEdit,
   onDelete,
   navigate,
+  tasks,
+  onEditTask,
 }: {
   session: Session;
   subjects: Subject[];
   onEdit?: (session: Session) => void;
   onDelete?: (id: string) => void;
   navigate: (route: Route) => void;
+  tasks?: Task[];
+  onEditTask?: (task: Task) => void;
 }) {
   const meta = COMMITTEES[session.committeeId];
   const committeeClass = `session-committee-badge ${session.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm'}`;
+  const pendingTasks = (tasks ?? []).filter((task) => task.status !== 'done');
   return (
     <article className="session-card">
+      {pendingTasks.length > 0 && (
+        <div className="session-task-alerts" aria-label="Tâches en attente pour la séance">
+          {pendingTasks.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              className="task-alert-icon"
+              title={`Tâche : ${task.description || task.subjectTitle}`}
+              onClick={() => onEditTask?.(task)}
+            >
+              !
+            </button>
+          ))}
+        </div>
+      )}
       <div className="session-card-content">
         <span className={committeeClass}>{meta.label}</span>
         <p className="session-number">{session.sessionNumber}</p>
@@ -1322,12 +1342,16 @@ function HomePage({
   onUpsert,
   onDelete,
   navigate,
+  tasks,
+  onEditTask,
 }: {
   sessions: Session[];
   subjects: Subject[];
   onUpsert: (session: Session | Omit<Session, 'committeeGroup'> & { id?: string }) => void;
   onDelete: (id: string) => void;
   navigate: (route: Route) => void;
+  tasks: Task[];
+  onEditTask: (task: Task) => void;
 }) {
   const [editing, setEditing] = useState<Session | null>(null);
   const emptySessionForm: SessionFormValue = {
@@ -1344,6 +1368,17 @@ function HomePage({
   const [form, setForm] = useState<SessionFormValue>(() => createEmptySessionForm());
   const [editForm, setEditForm] = useState<SessionFormValue>(() => createEmptySessionForm());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const pendingTasksBySession = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    tasks
+      .filter((task) => task.status !== 'done')
+      .forEach((task) => {
+        const existing = map.get(task.sessionId) ?? [];
+        existing.push(task);
+        map.set(task.sessionId, existing);
+      });
+    return map;
+  }, [tasks]);
 
   useEffect(() => {
     if (editing) {
@@ -1445,6 +1480,8 @@ function HomePage({
               onEdit={(s) => setEditing(s)}
               onDelete={onDelete}
               navigate={navigate}
+              tasks={pendingTasksBySession.get(session.id) ?? []}
+              onEditTask={onEditTask}
             />
           ))}
           {visibleSessions.length === 0 && <p className="vide">Aucune séance ce jour-là.</p>}
@@ -1478,6 +1515,8 @@ function CommitteePage({
   navigate,
   onUpsert,
   onDelete,
+  tasks,
+  onEditTask,
 }: {
   group: CommitteeGroup;
   sessions: Session[];
@@ -1485,6 +1524,8 @@ function CommitteePage({
   navigate: (route: Route) => void;
   onUpsert: (session: Session | Omit<Session, 'committeeGroup'> & { id?: string }) => void;
   onDelete: (id: string) => void;
+  tasks: Task[];
+  onEditTask: (task: Task) => void;
 }) {
   const createEmptySessionForm = useCallback(
     () => ({
@@ -1503,6 +1544,17 @@ function CommitteePage({
   const [sessionForm, setSessionForm] = useState<SessionFormValue>(() => createEmptySessionForm());
   const [editing, setEditing] = useState<Session | null>(null);
   const [editForm, setEditForm] = useState<SessionFormValue>(() => createEmptySessionForm());
+  const pendingTasksBySession = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    tasks
+      .filter((task) => task.status !== 'done')
+      .forEach((task) => {
+        const existing = map.get(task.sessionId) ?? [];
+        existing.push(task);
+        map.set(task.sessionId, existing);
+      });
+    return map;
+  }, [tasks]);
   const filteredSessions = useMemo(() => {
     const sessionsForGroup = sessions.filter((s) => s.committeeGroup === group);
     return [...sessionsForGroup].sort((a, b) => getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a));
@@ -1576,29 +1628,45 @@ function CommitteePage({
         {filteredSessions.map((session) => {
           const sessionSubjects = subjects.filter((s) => s.sessionId === session.id);
           const visibles = sessionSubjects;
+          const pendingTasks = pendingTasksBySession.get(session.id) ?? [];
           if (group === 'CCU') {
             return (
               <div key={session.id} className="session-card session-summary-card">
+                {pendingTasks.length > 0 && (
+                  <div className="session-task-alerts" aria-label="Tâches en attente pour la séance">
+                    {pendingTasks.map((task) => (
+                      <button
+                        key={task.id}
+                        type="button"
+                        className="task-alert-icon"
+                        title={`Tâche : ${task.description || task.subjectTitle}`}
+                        onClick={() => onEditTask(task)}
+                      >
+                        !
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <p className="session-summary-number">{session.sessionNumber}</p>
                 <p className="session-summary-date">{formatSessionSchedule(session)}</p>
                 <div className="session-actions">
-                <button
-                  className="bouton-secondaire"
-                  onClick={() => navigate({ page: 'session', sessionId: session.id })}
-                >
-                  Ouvrir la séance
-                </button>
-                <button className="bouton-lien" onClick={() => setEditing(session)}>
-                  Modifier la séance
-                </button>
-                <button className="bouton-lien" onClick={() => onDelete(session.id)}>
-                  Supprimer la séance
-                </button>
-              </div>
-              {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun PV disponible')}
-              {renderDocumentBlock(
-                'Ordre du jour',
-                session.agendaDocuments,
+                  <button
+                    className="bouton-secondaire"
+                    onClick={() => navigate({ page: 'session', sessionId: session.id })}
+                  >
+                    Ouvrir la séance
+                  </button>
+                  <button className="bouton-lien" onClick={() => setEditing(session)}>
+                    Modifier la séance
+                  </button>
+                  <button className="bouton-lien" onClick={() => onDelete(session.id)}>
+                    Supprimer la séance
+                  </button>
+                </div>
+                {renderDocumentBlock('Procès-verbal', session.pvDocuments, 'Aucun PV disponible')}
+                {renderDocumentBlock(
+                  'Ordre du jour',
+                  session.agendaDocuments,
                   'Aucun ordre du jour disponible',
                 )}
               </div>
@@ -1607,6 +1675,21 @@ function CommitteePage({
 
           return (
             <div key={session.id} className="session-card session-summary-card">
+              {pendingTasks.length > 0 && (
+                <div className="session-task-alerts" aria-label="Tâches en attente pour la séance">
+                  {pendingTasks.map((task) => (
+                    <button
+                      key={task.id}
+                      type="button"
+                      className="task-alert-icon"
+                      title={`Tâche : ${task.description || task.subjectTitle}`}
+                      onClick={() => onEditTask(task)}
+                    >
+                      !
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="session-summary-number">{session.sessionNumber}</p>
               <p className="session-summary-date">{formatSessionSchedule(session)}</p>
               <div className="session-actions">
@@ -2805,6 +2888,8 @@ export default function App() {
               onUpsert={upsertSession}
               onDelete={(id) => setSessionToDeleteId(id)}
               navigate={navigate}
+              tasks={state.tasks}
+              onEditTask={openTaskEditModal}
             />
           )}
           {route.page === 'ccu' && (
@@ -2815,6 +2900,8 @@ export default function App() {
               navigate={navigate}
               onUpsert={upsertSession}
               onDelete={(id) => setSessionToDeleteId(id)}
+              tasks={state.tasks}
+              onEditTask={openTaskEditModal}
             />
           )}
           {route.page === 'ccsrm' && (
@@ -2825,6 +2912,8 @@ export default function App() {
               navigate={navigate}
               onUpsert={upsertSession}
               onDelete={(id) => setSessionToDeleteId(id)}
+              tasks={state.tasks}
+              onEditTask={openTaskEditModal}
             />
           )}
           {route.page === 'tasks' && (
