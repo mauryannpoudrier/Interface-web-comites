@@ -361,6 +361,7 @@ input {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
 }
 
 .session-card-content {
@@ -842,16 +843,20 @@ input {
   right: 10px;
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100% - 20px);
 }
 
 .task-alert-icon {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   border: 1px solid #fecaca;
   background: #fef2f2;
   color: #b91c1c;
   font-weight: 900;
+  font-size: 16px;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -860,6 +865,17 @@ input {
 
 .task-alert-icon:hover {
   background: #fee2e2;
+}
+
+.session-task-alerts {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100% - 20px);
 }
 
 .result-list {
