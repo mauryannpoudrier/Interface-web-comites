@@ -1059,6 +1059,42 @@ function SubjectForm({
           items={value.attachments}
           onChange={(docs) => onChange('attachments', docs)}
         />
+
+        <div className="form-block location-form-block">
+          <div className="points-list-header">
+            <label className="resolution-label">Localisation du sujet</label>
+            <p className="form-hint">Cliquez sur la carte pour ajouter des points.</p>
+          </div>
+          <div className="pin-list">
+            {value.locations?.length ? (
+              value.locations.map((coord, index) => (
+                <div key={`${coord.lat}-${coord.lng}-${index}`} className="pin-item">
+                  <div>
+                    <p className="pin-label">Point {index + 1}</p>
+                    <div className="coordonnees">
+                      <span>Lat : {coord.lat.toFixed(6)}</span>
+                      <span>Lng : {coord.lng.toFixed(6)}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="bouton-lien"
+                    onClick={() =>
+                      onChange(
+                        'locations',
+                        value.locations?.filter((_, idx) => idx !== index) ?? [],
+                      )
+                    }
+                  >
+                    Supprimer ce point
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="form-hint">Aucun point pour le moment.</p>
+            )}
+          </div>
+        </div>
       </div>
       <div className="actions-formulaire">
         <button
@@ -2327,11 +2363,45 @@ function SessionDetail({
     return map;
   }, [tasks]);
 
+  const formPrimaryNumber = useMemo(
+    () => form.mainResolutionNumbers?.find((num) => num.trim()) ?? form.subjectNumber,
+    [form.mainResolutionNumbers, form.subjectNumber],
+  );
+
+  const addLocationToForm = useCallback(
+    (coords: { lat: number; lng: number }) => {
+      setForm((prev) => ({
+        ...prev,
+        locations: [
+          ...(prev.locations ?? []),
+          { ...coords, pinColor: MAP_PIN_COLORS[session.committeeGroup] },
+        ],
+      }));
+    },
+    [session.committeeGroup],
+  );
+
+  const inlineDraftMarkers: MapMarker[] = useMemo(
+    () =>
+      (form.locations ?? []).map((location) => ({
+        lat: location.lat,
+        lng: location.lng,
+        color: location.pinColor ?? MAP_PIN_COLORS[session.committeeGroup],
+        title: form.subjectTitle || 'Nouveau sujet',
+        label: formPrimaryNumber || undefined,
+      })),
+    [form.locations, form.subjectTitle, formPrimaryNumber, session.committeeGroup],
+  );
+
   const save = () => {
     const primaryNumber =
       form.mainResolutionNumbers?.find((num) => num.trim()) ?? form.subjectNumber.trim();
     if (!primaryNumber || !form.subjectTitle) return;
     const payload = editing ? { ...editing, ...form } : { ...form };
+    const normalizedLocations = (payload.locations ?? []).map((location) => ({
+      ...location,
+      pinColor: location.pinColor ?? MAP_PIN_COLORS[session.committeeGroup],
+    }));
     const normalized = {
       ...(payload as Subject),
       sessionId: session.id,
@@ -2339,6 +2409,7 @@ function SessionDetail({
       mainResolutionNumbers: form.mainResolutionNumbers?.length
         ? form.mainResolutionNumbers
         : [primaryNumber],
+      locations: normalizedLocations,
     } satisfies Subject;
     onUpsertSubject(normalized);
     setEditing(null);
@@ -2373,6 +2444,17 @@ function SessionDetail({
           : [],
       ),
     [session.committeeGroup, visibles],
+  );
+
+  const sessionMapMarkers = useMemo(
+    () =>
+      editing
+        ? [
+            ...sessionMarkers.filter((marker) => marker.subjectId !== editing.id),
+            ...inlineDraftMarkers,
+          ]
+        : [...sessionMarkers, ...inlineDraftMarkers],
+    [editing, inlineDraftMarkers, sessionMarkers],
   );
 
   const draftMarkers: MapMarker[] = useMemo(
@@ -2437,8 +2519,9 @@ function SessionDetail({
           <MapView
             title="Carte en vue satellite avec seulement les sujets de cette séance"
             accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
-            markers={sessionMarkers}
+            markers={sessionMapMarkers}
             onSelectSujet={onSelectSujet}
+            onPickLocation={addLocationToForm}
           />
         </div>
 
