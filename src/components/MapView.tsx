@@ -45,6 +45,11 @@ function loadGoogleMaps(): Promise<any> {
   return googleMapsPromise;
 }
 
+type LegendItem = {
+  label: string;
+  color: string;
+};
+
 type Marker = {
   lat: number;
   lng: number;
@@ -72,12 +77,14 @@ export function MapView({
   title,
   onSelectSujet,
   onPickLocation,
+  legendItems,
 }: {
   markers: Marker[];
   accent: string;
   title?: string;
   onSelectSujet?: (sujetId: string) => void;
   onPickLocation?: (coords: { lat: number; lng: number }) => void;
+  legendItems?: LegendItem[];
 }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -225,10 +232,21 @@ export function MapView({
         {markers.length === 0 && <p className="map-hint">Aucun sujet géolocalisé pour ce filtre.</p>}
         {error && <p className="map-error">{error}</p>}
       </div>
+      {legendItems && legendItems.length > 0 && (
+        <div className="map-legend" aria-label="Légende de la carte">
+          {legendItems.map((item) => (
+            <div key={`${item.label}-${item.color}`} className="map-legend-item">
+              <span className="map-legend-swatch" style={{ backgroundColor: item.color }} aria-hidden="true" />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 export type MapMarker = Marker;
+export type MapLegendItem = LegendItem;
 
 export default MapView;
