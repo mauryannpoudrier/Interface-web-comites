@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-
-const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+import { googleMapsApiKey, googleMapsLibraries, isGoogleMapsConfigured } from '../config';
 
 const DEFAULT_CENTER = { lat: 48.109, lng: -77.796 };
 
 declare global {
   interface Window {
     google?: any;
+    gm_authFailure?: () => void;
   }
 }
 
 let googleMapsPromise: Promise<any> | null = null;
+
+function getGoogleMapsHelpMessage(reason: string) {
+  return `Google Maps indisponible (${reason}). Vérifiez la clé API, la facturation Google Cloud, les APIs Maps JavaScript / Places / Geocoding et les restrictions de domaine.`;
+}
 
 function loadGoogleMaps(): Promise<any> {
   if (typeof window === 'undefined') {
@@ -21,23 +25,40 @@ function loadGoogleMaps(): Promise<any> {
     return Promise.resolve(window.google.maps);
   }
 
-  if (!apiKey) {
-    return Promise.reject(new Error('Clé Google Maps manquante.'));
+  if (!isGoogleMapsConfigured) {
+    return Promise.reject(new Error(getGoogleMapsHelpMessage('clé API manquante')));
   }
 
   if (!googleMapsPromise) {
     googleMapsPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`;
+      const libraries = googleMapsLibraries.join(',');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&loading=async&libraries=${encodeURIComponent(libraries)}`;
       script.async = true;
+
+      const timeout = window.setTimeout(() => {
+        reject(new Error(getGoogleMapsHelpMessage('délai dépassé')));
+      }, 12000);
+
+      const authFailureHandler = () => {
+        clearTimeout(timeout);
+        reject(new Error(getGoogleMapsHelpMessage("échec d'authentification")));
+      };
+
+      window.gm_authFailure = authFailureHandler;
+
       script.onload = () => {
+        clearTimeout(timeout);
         if (window.google?.maps) {
           resolve(window.google.maps);
         } else {
-          reject(new Error('Google Maps non disponible après chargement.'));
+          reject(new Error(getGoogleMapsHelpMessage('API indisponible après chargement')));
         }
       };
-      script.onerror = () => reject(new Error('Impossible de charger Google Maps.'));
+      script.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error(getGoogleMapsHelpMessage('échec réseau')));
+      };
       document.head.appendChild(script);
     });
   }
