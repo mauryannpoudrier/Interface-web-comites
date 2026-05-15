@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import Calendar from './components/Calendar';
-import MapView, { type MapMarker } from './components/MapView';
+import MapView, { type MapLegendItem, type MapMarker } from './components/MapView';
 import BackToTopButton from './components/BackToTopButton';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
 
@@ -122,6 +122,16 @@ const MAP_PIN_COLORS: Record<CommitteeGroup, string> = {
   CCU: '#22c55e',
   CCSRM: '#3b82f6',
 };
+
+
+const YEAR_PIN_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#4f46e5', '#be123c'];
+
+function getSessionYear(session?: Session): string {
+  if (!session?.date) return 'Inconnue';
+  const year = Number.parseInt(session.date.slice(0, 4), 10);
+  return Number.isNaN(year) ? 'Inconnue' : String(year);
+}
+
 
 const defaultState: AppState = {
   categories: [
@@ -1842,21 +1852,48 @@ function SearchPage({
     committee === 'all'
       ? categories
       : categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === committee);
+  const isSingleCommitteeFiltered = committee === 'CCSRM' || committee === 'CCU';
+
+  const yearColorMap = useMemo(() => {
+    if (!isSingleCommitteeFiltered) return new Map<string, string>();
+
+    const years = Array.from(new Set(results.map(({ session }) => getSessionYear(session)))).sort((a, b) => Number(b) - Number(a));
+    return new Map(years.map((year, index) => [year, YEAR_PIN_COLORS[index % YEAR_PIN_COLORS.length]]));
+  }, [isSingleCommitteeFiltered, results]);
+
+  const mapLegendItems: MapLegendItem[] = useMemo(() => {
+    if (isSingleCommitteeFiltered) {
+      return Array.from(yearColorMap.entries()).map(([year, color]) => ({
+        label: `Séances ${year}`,
+        color,
+      }));
+    }
+
+    return [
+      { label: 'CCSRM/CCC', color: MAP_PIN_COLORS.CCSRM },
+      { label: 'CCU', color: MAP_PIN_COLORS.CCU },
+    ];
+  }, [isSingleCommitteeFiltered, yearColorMap]);
+
   const resultMarkers: MapMarker[] = useMemo(
     () =>
       results.flatMap(({ subject, session }) =>
         subject.locations?.length
-          ? subject.locations.map((location) => ({
-              lat: location.lat,
-              lng: location.lng,
-              color: location.pinColor ?? MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'],
-              title: subject.subjectTitle,
-              label: getPrimaryNumber(subject),
-              subjectId: subject.id,
-            }))
+          ? subject.locations.map((location) => {
+              const committeeColor = MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'];
+              const yearColor = yearColorMap.get(getSessionYear(session));
+              return {
+                lat: location.lat,
+                lng: location.lng,
+                color: isSingleCommitteeFiltered ? yearColor ?? committeeColor : location.pinColor ?? committeeColor,
+                title: subject.subjectTitle,
+                label: getPrimaryNumber(subject),
+                subjectId: subject.id,
+              };
+            })
           : [],
       ),
-    [results],
+    [isSingleCommitteeFiltered, results, yearColorMap],
   );
 
   return (
@@ -1874,6 +1911,7 @@ function SearchPage({
           accent="#f24405"
           markers={resultMarkers}
           onSelectSujet={onSelectSujet}
+          legendItems={mapLegendItems}
         />
       </div>
 
