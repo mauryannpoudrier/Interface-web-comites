@@ -125,12 +125,23 @@ export function MapView({
     setError(null);
 
     loadGoogleMaps()
-      .then((maps) => {
+      .then(async (maps) => {
         if (!mapRef.current || canceled) return;
+
+        let MapConstructor = maps.Map;
+        if (typeof maps.importLibrary === 'function') {
+          const mapLibrary = await maps.importLibrary('maps');
+          MapConstructor = mapLibrary?.Map ?? MapConstructor;
+        }
+
+        if (typeof MapConstructor !== 'function') {
+          throw new Error(getGoogleMapsHelpMessage('constructeur Map indisponible'));
+        }
+
         mapsRef.current = maps;
 
         if (!mapInstanceRef.current) {
-          mapInstanceRef.current = new maps.Map(mapRef.current, {
+          mapInstanceRef.current = new MapConstructor(mapRef.current, {
             center,
             zoom: markers.length > 1 ? 12 : 14,
             mapTypeId: 'satellite',
