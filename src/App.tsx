@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import Calendar from './components/Calendar';
-import MapView, { type MapLegendItem, type MapMarker } from './components/MapView';
+import CommitteeMap, { type MapLegendItem, type MapMarker } from './components/maps/CommitteeMap';
 import BackToTopButton from './components/BackToTopButton';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
 
@@ -1906,7 +1906,7 @@ function SearchPage({
           </div>
           <span className="pastille">Recherche</span>
         </div>
-        <MapView
+        <CommitteeMap
           title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)"
           accent="#f24405"
           markers={resultMarkers}
@@ -2554,7 +2554,7 @@ function SessionDetail({
             </div>
             <Badge committeeId={session.committeeId} />
           </div>
-          <MapView
+          <CommitteeMap
             title="Carte en vue satellite avec seulement les sujets de cette séance"
             accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
             markers={sessionMapMarkers}
@@ -2643,7 +2643,7 @@ function SessionDetail({
                 Fermer
               </button>
             </div>
-            <MapView
+            <CommitteeMap
               title="Cliquez pour ajouter un point"
               accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
               markers={[...sessionMarkersWithoutCurrent, ...draftMarkers]}
