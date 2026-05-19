@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const DEFAULT_CENTER = { lat: 48.0989, lng: -77.7974 };
 const GOOGLE_MAPS_SCRIPT_ID = 'google-maps-script';
+const GOOGLE_MAPS_LIBRARIES = ['places', 'marker'] as const;
 
 export type MapLegendItem = { label: string; color: string };
 export type MapMarker = { lat: number; lng: number; color?: string; title: string; label?: string; subjectId?: string; committee?: string; year?: string };
@@ -22,20 +23,32 @@ const buildMarkerPin = (color: string) => {
 };
 
 const loadGoogleMapsApi = (apiKey: string) => {
-  if ((window as Window & { google?: unknown }).google) return Promise.resolve();
+  const existingGoogle = (window as Window & { google?: unknown }).google;
+  if (existingGoogle) return Promise.resolve();
 
-  const existing = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null;
-  if (existing) {
-    return new Promise<void>((resolve, reject) => {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('failed to load')), { once: true });
-    });
+  const scriptUrl = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async&libraries=${GOOGLE_MAPS_LIBRARIES.join(',')}`;
+
+  const staleGoogleScripts = Array.from(document.querySelectorAll<HTMLScriptElement>('script[src*="maps.googleapis.com/maps/api/js"]')).filter(
+    (script) => script.id !== GOOGLE_MAPS_SCRIPT_ID,
+  );
+  staleGoogleScripts.forEach((script) => script.remove());
+
+  const existingScript = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null;
+  if (existingScript) {
+    if (existingScript.src !== scriptUrl) {
+      existingScript.remove();
+    } else {
+      return new Promise<void>((resolve, reject) => {
+        existingScript.addEventListener('load', () => resolve(), { once: true });
+        existingScript.addEventListener('error', () => reject(new Error('failed to load')), { once: true });
+      });
+    }
   }
 
   return new Promise<void>((resolve, reject) => {
     const script = document.createElement('script');
     script.id = GOOGLE_MAPS_SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async&libraries=marker`;
+    script.src = scriptUrl;
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
@@ -55,8 +68,11 @@ export default function CommitteeMap({ markers, accent, title, onSelectSujet, on
   const mapId = getMapId();
 
   useEffect(() => {
+    // Temporaire pour vérifier l'injection de l'environnement via Vite.
+    console.log('[GoogleMaps] VITE_GOOGLE_MAPS_API_KEY chargé :', apiKey ? `${apiKey.slice(0, 6)}***` : apiKey);
+
     if (!apiKey) {
-      setMapState({ status: 'error', message: 'La carte Google Maps est indisponible : VITE_GOOGLE_MAPS_API_KEY est absente.' });
+      setMapState({ status: 'error', message: 'Google Maps non chargé : VITE_GOOGLE_MAPS_API_KEY est undefined, null ou vide.' });
       return;
     }
 
@@ -67,6 +83,7 @@ export default function CommitteeMap({ markers, accent, title, onSelectSujet, on
         const googleRef = (window as Window & { google?: any }).google;
         if (!googleRef) throw new Error('google missing');
         await googleRef.maps.importLibrary('maps');
+        await googleRef.maps.importLibrary('places');
         await googleRef.maps.importLibrary('marker');
 
         if (canceled || !mapRef.current) return;
@@ -93,7 +110,7 @@ export default function CommitteeMap({ markers, accent, title, onSelectSujet, on
         if (!canceled) {
           setMapState({
             status: 'error',
-            message: 'Impossible de charger Google Maps. Vérifiez VITE_GOOGLE_MAPS_API_KEY (clé valide, API JavaScript activée et restrictions de domaine).',
+            message: 'Impossible de charger Google Maps. Vérifiez VITE_GOOGLE_MAPS_API_KEY (clé valide, API JavaScript activée, facturation et restrictions de domaine).',
           });
         }
       });
