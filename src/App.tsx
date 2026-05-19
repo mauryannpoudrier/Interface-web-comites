@@ -1797,140 +1797,213 @@ function SearchPage({
   onSelectSujet: (sujetId: string) => void;
 }) {
   const [committee, setCommittee] = useState<CommitteeGroup | 'all'>('all');
-  const [year, setYear] = useState<string>('all');
-  const [category, setCategory] = useState<string>('all');
-  const [search, setSearch] = useState('');
-  const [sessionNumber, setSessionNumber] = useState('');
-  const [resolutionNumber, setResolutionNumber] = useState('');
-  const [commentNumber, setCommentNumber] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('map');
-  const [colorByYear, setColorByYear] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState('');
+  const [resolution, setResolution] = useState('');
 
-  const years = useMemo(() => Array.from(new Set(sessions.map((session) => getSessionYear(session)))).sort((a, b) => Number(b) - Number(a)), [sessions]);
+  const toggleCategory = (id: string) => {
+    setSelectedCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  };
+
+  const reset = () => {
+    setCommittee('all');
+    setSelectedCategories([]);
+    setKeywords('');
+    setResolution('');
+  };
 
   const results = useMemo(() => {
     return subjects
-      .map((subject) => ({ subject, session: sessions.find((session) => session.id === subject.sessionId) }))
-      .filter((entry): entry is { subject: Subject; session: Session } => Boolean(entry.session))
-      .filter(({ subject, session }) => {
-        if (committee !== 'all' && session.committeeGroup !== committee) return false;
-        if (year !== 'all' && getSessionYear(session) !== year) return false;
-        if (category !== 'all' && !subject.categoriesIds.includes(category)) return false;
-
-        const searchable = `${subject.subjectTitle} ${subject.longDescription} ${subject.keywords.join(' ')}`.toLowerCase();
-        if (search.trim() && !searchable.includes(search.toLowerCase())) return false;
-        if (sessionNumber.trim() && !session.sessionNumber.toLowerCase().includes(sessionNumber.toLowerCase())) return false;
-
-        const allResolutionLike = [
-          ...subject.resolutionNumbers,
-          ...(subject.mainResolutionNumbers ?? []),
-          subject.subjectNumber,
-        ];
-
-        if (resolutionNumber.trim() && !allResolutionLike.some((num) => num.toLowerCase().includes(resolutionNumber.toLowerCase()))) return false;
-        if (commentNumber.trim() && !allResolutionLike.some((num) => num.toLowerCase().includes(commentNumber.toLowerCase()))) return false;
-
+      .map((subject) => {
+        const session = sessions.find((s) => s.id === subject.sessionId);
+        return { subject, session };
+      })
+      .filter((entry) => Boolean(entry.session))
+      .filter((entry) => {
+        if (!entry.session) return false;
+        if (committee !== 'all' && entry.session.committeeGroup !== committee) return false;
+        if (selectedCategories.length && !entry.subject.categoriesIds.some((c) => selectedCategories.includes(c))) {
+          return false;
+        }
+        if (keywords.trim()) {
+          const haystack = `${entry.subject.subjectTitle} ${entry.subject.longDescription} ${entry.subject.keywords.join(' ')}`.toLowerCase();
+          if (!haystack.includes(keywords.toLowerCase())) return false;
+        }
+        if (resolution.trim()) {
+          const hasResolution =
+            entry.subject.resolutionNumbers.some((num) =>
+              num.toLowerCase().includes(resolution.toLowerCase()),
+            ) ||
+            (entry.subject.mainResolutionNumbers ?? [entry.subject.subjectNumber]).some((num) =>
+              num.toLowerCase().includes(resolution.toLowerCase()),
+            );
+          if (!hasResolution) return false;
+        }
         return true;
       })
-      .sort((a, b) => getSessionLatestTimestamp(b.session) - getSessionLatestTimestamp(a.session));
-  }, [category, commentNumber, committee, resolutionNumber, search, sessionNumber, sessions, subjects, year]);
+      .sort(
+        (a, b) =>
+          (b.session ? getSessionLatestTimestamp(b.session) : 0) -
+          (a.session ? getSessionLatestTimestamp(a.session) : 0),
+      );
+  }, [committee, keywords, resolution, selectedCategories, sessions, subjects]);
 
-  const yearColorMap = useMemo(() => new Map(years.map((entryYear, index) => [entryYear, YEAR_PIN_COLORS[index % YEAR_PIN_COLORS.length]])), [years]);
+  const filteredCategories =
+    committee === 'all'
+      ? categories
+      : categories.filter((cat) => !cat.committeeGroup || cat.committeeGroup === committee);
+  const isSingleCommitteeFiltered = committee === 'CCSRM' || committee === 'CCU';
+
+  const yearColorMap = useMemo(() => {
+    if (!isSingleCommitteeFiltered) return new Map<string, string>();
+
+    const years = Array.from(new Set(results.map(({ session }) => getSessionYear(session)))).sort((a, b) => Number(b) - Number(a));
+    return new Map(years.map((year, index) => [year, YEAR_PIN_COLORS[index % YEAR_PIN_COLORS.length]]));
+  }, [isSingleCommitteeFiltered, results]);
 
   const mapLegendItems: MapLegendItem[] = useMemo(() => {
-    if (colorByYear) {
-      return Array.from(yearColorMap.entries()).map(([entryYear, color]) => ({ label: entryYear, color }));
+    if (isSingleCommitteeFiltered) {
+      return Array.from(yearColorMap.entries()).map(([year, color]) => ({
+        label: `Séances ${year}`,
+        color,
+      }));
     }
+
     return [
-      { label: 'CCU', color: MAP_PIN_COLORS.CCU },
       { label: 'CCSRM/CCC', color: MAP_PIN_COLORS.CCSRM },
+      { label: 'CCU', color: MAP_PIN_COLORS.CCU },
     ];
-  }, [colorByYear, yearColorMap]);
+  }, [isSingleCommitteeFiltered, yearColorMap]);
 
   const resultMarkers: MapMarker[] = useMemo(
     () =>
       results.flatMap(({ subject, session }) =>
-        (subject.locations ?? []).map((location, locationIndex) => ({
-          lat: location.lat,
-          lng: location.lng,
-          color: colorByYear ? yearColorMap.get(getSessionYear(session)) ?? MAP_PIN_COLORS[session.committeeGroup] : MAP_PIN_COLORS[session.committeeGroup],
-          title: subject.subjectTitle,
-          label: getPrimaryNumber(subject),
-          subjectId: subject.id,
-          committee: session.committeeGroup === 'CCU' ? 'CCU' : 'CCSRM/CCC',
-          year: getSessionYear(session),
-          sessionNumber: session.sessionNumber,
-          resolutionOrComment: [...subject.resolutionNumbers, ...(subject.mainResolutionNumbers ?? [subject.subjectNumber])][locationIndex] ?? subject.resolutionNumbers[0] ?? subject.subjectNumber,
-        })),
+        subject.locations?.length
+          ? subject.locations.map((location) => {
+              const committeeColor = MAP_PIN_COLORS[session?.committeeGroup ?? 'CCSRM'];
+              const yearColor = yearColorMap.get(getSessionYear(session));
+              return {
+                lat: location.lat,
+                lng: location.lng,
+                color: isSingleCommitteeFiltered ? yearColor ?? committeeColor : location.pinColor ?? committeeColor,
+                title: subject.subjectTitle,
+                label: getPrimaryNumber(subject),
+                subjectId: subject.id,
+                committee: session?.committeeGroup === 'CCU' ? 'CCU' : 'CCSRM/CCC',
+                year: getSessionYear(session),
+              };
+            })
+          : [],
       ),
-    [colorByYear, results, yearColorMap],
+    [isSingleCommitteeFiltered, results, yearColorMap],
   );
 
   return (
-    <div className="search-page municipality-search">
-      <h1>Recherche</h1>
-      <p className="search-subtitle">Recherchez parmi tous les sujets de comité</p>
-
-      <div className="search-input-shell">
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par mot-clé, titre, résolution…" />
-      </div>
-
-      <div className="card filters-card municipality-card">
-        <p className="form-label">Filtres</p>
-        <div className="filters-grid">
-          <select value={committee} onChange={(event) => setCommittee(event.target.value as CommitteeGroup | 'all')}>
-            <option value="all">Tous les comités</option>
-            <option value="CCU">CCU</option>
-            <option value="CCSRM">CCSRM/CCC</option>
-          </select>
-          <select value={year} onChange={(event) => setYear(event.target.value)}>
-            <option value="all">Toutes les années</option>
-            {years.map((entryYear) => <option key={entryYear} value={entryYear}>{entryYear}</option>)}
-          </select>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            <option value="all">Toutes les catégories</option>
-            {categories.map((entryCategory) => <option key={entryCategory.id} value={entryCategory.id}>{entryCategory.label}</option>)}
-          </select>
-          <input value={sessionNumber} onChange={(event) => setSessionNumber(event.target.value)} placeholder="Numéro de séance" />
-          <input value={resolutionNumber} onChange={(event) => setResolutionNumber(event.target.value)} placeholder="Numéro de résolution" />
-          <input value={commentNumber} onChange={(event) => setCommentNumber(event.target.value)} placeholder="Numéro de commentaire" />
-        </div>
-      </div>
-
-      <div className="search-toolbar">
-        <span>{results.length} résultats</span>
-        <label className="switch-row"><input type="checkbox" checked={colorByYear} onChange={(event) => setColorByYear(event.target.checked)} />Couleur par année</label>
-        <div className="view-switch">
-          <button type="button" className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>Liste</button>
-          <button type="button" className={viewMode === 'map' ? 'active' : ''} onClick={() => setViewMode('map')}>Carte</button>
-        </div>
-      </div>
-
-      {viewMode === 'map' ? (
-        <div className="card municipality-card map-card">
-          <CommitteeMap title="Carte interactive OpenStreetMap" accent="#1f9d6a" markers={resultMarkers} onSelectSujet={onSelectSujet} legendItems={mapLegendItems} />
-        </div>
-      ) : (
-        <div className="card results-card municipality-card">
-          <div className="result-list">
-            {results.map(({ subject, session }) => {
-              const categoryLabels = subject.categoriesIds.map((id) => categories.find((entryCategory) => entryCategory.id === id)?.label).filter((label): label is string => Boolean(label));
-              const refNumber = subject.resolutionNumbers[0] ?? subject.mainResolutionNumbers?.[0] ?? subject.subjectNumber;
-              return (
-                <article key={subject.id} className="result-card municipality-result" onClick={() => navigate({ page: 'session', sessionId: session.id })}>
-                  <h3 className="result-title">{subject.subjectTitle}</h3>
-                  <p className="result-infos">Comité: {session.committeeGroup === 'CCU' ? 'CCU' : 'CCSRM/CCC'} · Année: {getSessionYear(session)}</p>
-                  <p className="result-infos">Séance: {session.sessionNumber} · Résolution/Commentaire: {refNumber}</p>
-                  <p className="result-infos">Catégorie: {categoryLabels.join(', ') || 'Non classé'}</p>
-                  <button type="button" className="map-infowindow-btn" onClick={(event) => { event.stopPropagation(); onSelectSujet(subject.id); }}>
-                    Voir la fiche
-                  </button>
-                </article>
-              );
-            })}
+    <div className="search-page">
+      <div className="card map-card">
+        <div className="entete-formulaire">
+          <div>
+            <p className="surTitre">Carte globale</p>
+            <h2>Tous les sujets</h2>
           </div>
+          <span className="pastille">Recherche</span>
         </div>
-      )}
+        <CommitteeMap
+          title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)"
+          accent="#f24405"
+          markers={resultMarkers}
+          onSelectSujet={onSelectSujet}
+          legendItems={mapLegendItems}
+        />
+      </div>
+
+      <div className="card filters-card">
+        <div className="filters-grid">
+          <label>
+            <span className="form-label">Type de comité</span>
+            <select value={committee} onChange={(e) => setCommittee(e.target.value as CommitteeGroup | 'all')}>
+              <option value="all">Tous</option>
+              <option value="CCU">CCU</option>
+              <option value="CCSRM">CCSRM/CCC</option>
+            </select>
+          </label>
+          <label>
+            <span className="form-label">Mots-clés</span>
+            <input
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              placeholder="Titre, commentaire, etc."
+            />
+          </label>
+          <label>
+            <span className="form-label"># Résolution / commentaire</span>
+            <input value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="2025-04" />
+          </label>
+        </div>
+        <div className="categories">
+          {filteredCategories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className={`tag ${selectedCategories.includes(cat.id) ? 'actif' : ''}`}
+              onClick={() => toggleCategory(cat.id)}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+        <div className="actions-formulaire align-end">
+          <button className="bouton-secondaire" type="button" onClick={reset}>
+            Réinitialiser / Afficher tout
+          </button>
+        </div>
+      </div>
+
+      <div className="card results-card">
+        <div className="entete-liste">
+          <p className="surTitre">Résultat de la recherche</p>
+          <span className="pastille">{results.length} sujets</span>
+        </div>
+        <div className="result-list">
+          {results.map(({ subject, session }) => {
+            const categoryLabels = subject.categoriesIds
+              .map((id) => categories.find((c) => c.id === id)?.label)
+              .filter((label): label is string => Boolean(label));
+            const primaryNumber = getPrimaryNumber(subject);
+            const { typeLabel, numberLabel } = formatSubjectBadge(primaryNumber);
+            const badgeText = session
+              ? `${session.sessionNumber} ${typeLabel} ${numberLabel}`
+              : `${typeLabel} ${numberLabel}`;
+            const committeeClass = session?.committeeGroup === 'CCU' ? 'ccu' : 'ccsrm';
+
+            return (
+              <button
+                key={subject.id}
+                className={`result-card ${committeeClass}`}
+                onClick={() => session && navigate({ page: 'session', sessionId: session.id })}
+              >
+                <span className={`session-committee-badge result-committee-badge ${committeeClass}`}>
+                  {badgeText}
+                </span>
+                <h3 className="result-title">{subject.subjectTitle}</h3>
+                <p className="result-infos">{session ? formatSessionSchedule(session) : ''}</p>
+                <div className="result-categories">
+                  {categoryLabels.length ? (
+                    categoryLabels.map((label) => (
+                      <span key={label} className="etiquette">
+                        {label}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="etiquette neutre">Non classé</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+          {results.length === 0 && <p className="vide">Aucun sujet trouvé.</p>}
+        </div>
+      </div>
     </div>
   );
 }
