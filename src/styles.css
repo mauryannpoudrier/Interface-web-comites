@@ -1506,18 +1506,13 @@ input {
   flex: 0 0 auto;
 }
 
-.map-canvas.leaflet-container {
+.map-canvas {
   width: 100%;
   height: 100%;
   min-height: 320px;
 }
 
-.leaflet-custom-marker {
-  background: transparent;
-  border: 0;
-}
-
-.leaflet-custom-pin {
+.gmaps-pin {
   display: block;
   width: 20px;
   height: 20px;
