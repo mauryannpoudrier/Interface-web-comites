@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import Calendar from './components/Calendar';
-import MapView, { type MapLegendItem, type MapMarker } from './components/MapView';
+import CommitteeMap, { type MapLegendItem, type MapMarker } from './components/maps/CommitteeMap';
 import BackToTopButton from './components/BackToTopButton';
 import logoVille from './logo-vvd-couleur-nom-dessous.png';
 
@@ -1889,6 +1889,8 @@ function SearchPage({
                 title: subject.subjectTitle,
                 label: getPrimaryNumber(subject),
                 subjectId: subject.id,
+                committee: session?.committeeGroup === 'CCU' ? 'CCU' : 'CCSRM/CCC',
+                year: getSessionYear(session),
               };
             })
           : [],
@@ -1906,7 +1908,7 @@ function SearchPage({
           </div>
           <span className="pastille">Recherche</span>
         </div>
-        <MapView
+        <CommitteeMap
           title="Carte avec tous les sujets filtrés (CCU et CCSRM/CCC)"
           accent="#f24405"
           markers={resultMarkers}
@@ -2478,6 +2480,8 @@ function SessionDetail({
               title: subject.subjectTitle,
               label: getPrimaryNumber(subject),
               subjectId: subject.id,
+              committee: session.committeeGroup === 'CCU' ? 'CCU' : 'CCSRM/CCC',
+              year: getSessionYear(session),
             }))
           : [],
       ),
@@ -2554,7 +2558,7 @@ function SessionDetail({
             </div>
             <Badge committeeId={session.committeeId} />
           </div>
-          <MapView
+          <CommitteeMap
             title="Carte en vue satellite avec seulement les sujets de cette séance"
             accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
             markers={sessionMapMarkers}
@@ -2643,7 +2647,7 @@ function SessionDetail({
                 Fermer
               </button>
             </div>
-            <MapView
+            <CommitteeMap
               title="Cliquez pour ajouter un point"
               accent={COMMITTEE_GROUP_COLORS[session.committeeGroup]}
               markers={[...sessionMarkersWithoutCurrent, ...draftMarkers]}
@@ -2704,6 +2708,13 @@ export default function App() {
   const [focusedSubjectId, setFocusedSubjectId] = useState<string | null>(null);
   const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
   const [taskModal, setTaskModal] = useState<{ task?: Task; subjectId?: string } | null>(null);
+
+  useEffect(() => {
+    const legacyGoogleMapsScripts = document.querySelectorAll<HTMLScriptElement>(
+      'script[src*="maps.googleapis.com/maps/api/js"]',
+    );
+    legacyGoogleMapsScripts.forEach((script) => script.remove());
+  }, []);
 
   useEffect(() => {
     const handler = () => setRoute(parseHash());
